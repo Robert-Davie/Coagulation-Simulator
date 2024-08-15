@@ -8,20 +8,8 @@ from PyQt5.QtWidgets import (
     QComboBox,
 )
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QTimer
-from simulation_variables import SimulationVariables
-
-
-# description_message = [
-#     "Tissue damage results in release of tissue factor and endothelins",
-#     "Endothelins result in vasoconstriction of damaged blood vessel",
-#     "Primary haemostasis (platelet plug formation)",
-#     "Platelets become activated",
-#     "Platelets adhere to damaged endothelium",
-#     "Secondary haemostasis (Coagulation cascade)",
-#     "Fibrin forms cross-linked mesh",
-#     "Stable thrombus formed",
-# ]
+from PyQt5.QtCore import QTimer, Qt
+from simulation_variables import SimulationVariables, cross_linked_over_time
 
 WHITE = "#FFFFFF"
 CREAM = "#FFFDD0"
@@ -41,13 +29,15 @@ disorders = [
     "Factor V Leiden",
 ]
 
-speeds = ["x 1", "x 2", "x 4", "x 8", "x 16", "x 0.5"]
+speeds = ["x 1", "x 2", "x 4", "x 8", "x 16", "x 32", "x 0.5"]
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.speed = 1
         self.timer = QTimer()
+        self.timer.timeout.connect(self.time_passes)
 
         self.setStyleSheet(f"background-color: {CREAM};")
         self.setWindowIcon(QIcon("icon.jpg"))
@@ -55,8 +45,8 @@ class MainWindow(QMainWindow):
         self.layout = QGridLayout()
 
         column_widths = (
-            (0, 0),
-            (1, 45),
+            (0, 15),
+            (1, 5),
             (2, 45),
             (3, 45),
             (4, 15),
@@ -139,7 +129,8 @@ class MainWindow(QMainWindow):
 
         self.commonPathwayLabel.setText("Common Pathway")
 
-        self.primaryHaemLabel = self.create_label(0, 1, "Primary Haemostasis")
+        self.primaryHaemLabel = self.create_label(0, 0, "Primary Haemostasis")
+        self.primaryHaemLabel.setAlignment(Qt.AlignLeft)
         self.secondaryHaemLabel = self.create_label(0, 2, "Secondary Haemostasis")
 
         (
@@ -166,35 +157,61 @@ class MainWindow(QMainWindow):
 
         self.extrinsicPathwayLabel.setText("Extrinsic Pathway")
 
-        self.calciumIonsLabel = QLabel()
-        self.layout.addWidget(self.calciumIonsLabel, 3, 3)
-
-        self.plateletsLabel = QLabel()
-        self.layout.addWidget(self.plateletsLabel, 4, 3)
-
-        self.descriptionLabel = QLabel()
-        self.layout.addWidget(self.descriptionLabel, 5, 3)
-        self.set_colour(self.descriptionLabel, "#90EE90")
-
-        self.testResultsLabel = QLabel("Test Results")
-        self.layout.addWidget(self.testResultsLabel, 0, 3)
-
-        self.iNRLabel = QLabel()
-        self.layout.addWidget(self.iNRLabel, 1, 3)
-
-        self.aPTTLabel = QLabel()
-        self.layout.addWidget(self.aPTTLabel, 2, 3)
-
-        for test_widget in [
+        (
             self.testResultsLabel,
             self.iNRLabel,
             self.aPTTLabel,
-            self.calciumIonsLabel,
-            self.plateletsLabel,
-        ]:
-            self.set_colour(test_widget, WHITE)
+            self.descriptionLabel,
+        ) = (self.create_label(i, 3, "", WHITE) for i in range(4))
 
-        self.timer.timeout.connect(self.time_passes)
+        (
+            self.vWFLabel,
+            self.plateletsLabel,
+            self.activatedPlateletsLabel,
+            self.glycoprotein1bLabel,
+            self.glycoprotein2b3aLabel,
+            self.endothelinLabel,
+            self.nitricOxideLabel,
+            self.prostacyclinLabel,
+            self.alphaGranulesLabel,
+            self.denseGranulesLabel,
+            self.serotoninLabel,
+            self.aDPLabel,
+            self.calciumIonsLabel,
+        ) = (self.create_label(i, 0) for i in range(1, 14))
+
+        self.vWFLabel.setText("\tVon Willebrand Factor")
+        self.plateletsLabel.setText("\tInactive Platelets")
+        self.activatedPlateletsLabel.setText("\tActivated Platelets")
+        self.glycoprotein1bLabel.setText("\tGlycoprotein Ib")
+        self.glycoprotein2b3aLabel.setText("\tGlycoprotein IIb/IIIa")
+        self.endothelinLabel.setText("\tEndothelin")
+        self.nitricOxideLabel.setText("\tNitric Oxide")
+        self.prostacyclinLabel.setText("\tProstacyclin")
+        self.alphaGranulesLabel.setText("\tAlpha Granules")
+        self.denseGranulesLabel.setText("\tDense Granules")
+        self.serotoninLabel.setText("\tSerotonin")
+        self.aDPLabel.setText("\tADP")
+        self.calciumIonsLabel.setText("\tCalcium")
+
+        (
+            self.vWFLabel2,
+            self.plateletsLabel2,
+            self.activatedPlateletsLabel2,
+            self.glycoprotein1bLabel2,
+            self.glycoprotein2b3aLabel2,
+            self.endothelinLabel2,
+            self.nitricOxideLabel2,
+            self.prostacyclinLabel2,
+            self.alphaGranulesLabel2,
+            self.denseGranulesLabel2,
+            self.serotoninLabel2,
+            self.aDPLabel2,
+            self.calciumIonsLabel2,
+        ) = (self.create_label(i, 1, "test", set_align="RIGHT") for i in range(1, 14))
+
+        self.testResultsLabel.setText("Test Results:")
+        self.set_colour(self.descriptionLabel, "#90EE90")
 
     def create_button(self, row, column, text, colour, action=None):
         this_button = QPushButton(text)
@@ -204,10 +221,21 @@ class MainWindow(QMainWindow):
             this_button.clicked.connect(action)
         return this_button
 
-    def create_label(self, row, column, text=""):
+    def create_label(self, row, column, text="", colour="", set_align="RIGHT"):
         this_label = QLabel()
         self.layout.addWidget(this_label, row, column)
+        if colour != "":
+            self.set_colour(this_label, colour)
         this_label.setText(text)
+        alignment = Qt.AlignLeft
+        match set_align:
+            case "RIGHT":
+                alignment = Qt.AlignRight
+            case "CENTRE":
+                alignment = Qt.AlignCenter
+            case "LEFT":
+                alignment = Qt.AlignLeft
+        this_label.setAlignment(alignment)
         return this_label
 
     def create_combobox(self, row, column, options):
@@ -230,7 +258,7 @@ class MainWindow(QMainWindow):
         self.update_ui_components()
 
     def start_timer(self):
-        timer_speed = int(500 // simVars.speed)
+        timer_speed = int(500 // self.speed)
         self.timer.start(timer_speed)
         self.startTimerButton.setDisabled(True)
         self.speedChoiceBox.setDisabled(True)
@@ -256,9 +284,10 @@ class MainWindow(QMainWindow):
             2: 4,
             3: 8,
             4: 16,
-            5: 0.5,
+            5: 32,
+            6: 0.5,
         }
-        simVars.speed = speed_dictionary[index]
+        self.speed = speed_dictionary[index]
 
     def disorder_changed(self, text):
         simVars.reset()
@@ -269,6 +298,8 @@ class MainWindow(QMainWindow):
                 simVars.factor9 = 10
                 simVars.factor10 = 10
                 simVars.platelets = 100
+            case "Haemophilia C":
+                simVars.factor11 = 0
             case "Haemophilia B":
                 simVars.factor9 = 0
             case "Haemophilia A (Mild)":
@@ -282,100 +313,136 @@ class MainWindow(QMainWindow):
 
     def time_passes(self):
 
-        simVars.catalyze("subendothelium", "factor12", "factor12a", 150)
+        simVars.catalyze("subendothelium", "factor12", "factor12a", 100)
         simVars.catalyze("factor12a", "factor11", "factor11a", 500)
-        simVars.catalyze("factor11a", "factor9", "factor9a", 100, calcium=True)
+        simVars.catalyze(
+            "factor11a",
+            "factor9",
+            "factor9a",
+            2000,
+            calcium=True,
+            catalyst_2="factor7a",
+            multiplier=200,
+        )
         simVars.catalyze(
             "factor9a",
             "factor10",
             "factor10a",
-            40000,
+            120000,
             catalyst_2="factor8a",
-            multiplier=2000,
+            multiplier=3000,
             calcium=True,
         )
-        simVars.catalyze("tissue_factor", "factor7", "factor7a", 400)
-        simVars.catalyze("factor7a", "factor10", "factor10a", 400)
+        simVars.catalyze("tissue_factor", "factor7", "factor7a", 1000)
+        simVars.catalyze("factor7a", "factor10", "factor10a", 1000)
         simVars.catalyze(
             "factor10a",
             "prothrombin",
             "thrombin",
-            400,
+            120000,
             catalyst_2="factor5a",
-            multiplier=100,
+            multiplier=6000,
             calcium=True,
         )
-        simVars.catalyze("thrombin", "factor11", "factor11a", 25)
-        simVars.catalyze("thrombin", "factor8", "factor8a", 25)
+        simVars.catalyze("thrombin", "factor11", "factor11a", 1000)
+        simVars.catalyze("thrombin", "factor8", "factor8a", 1000)
+        simVars.catalyze("thrombin", "factor7", "factor7a", 1000)
         simVars.catalyze(
             "thrombin",
             "factor5",
             "factor5a",
-            5000,
+            120000,
             catalyst_2="factor10a",
-            multiplier=500,
+            multiplier=6000,
         )
-        simVars.catalyze("thrombin", "factor7", "factor7a", 25)
-        simVars.catalyze("thrombin", "fibrinogen", "fibrin", 10, calcium=True)
-        simVars.catalyze("thrombin", "factor13", "factor13a", 15)
-        simVars.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 15)
+        simVars.catalyze("thrombin", "fibrinogen", "fibrin", 15, calcium=True)
+        simVars.catalyze("thrombin", "factor13", "factor13a", 19)
+        simVars.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 40)
 
         simVars.current_time += 1
-        if simVars.cross_linked_fibrin == 50000:
+        cross_linked_over_time.append(simVars.cross_linked_fibrin)
+        if round(simVars.cross_linked_fibrin, 7) == 50000:
             self.stop_timer()
+            for i in cross_linked_over_time:
+                print(i)
         self.update_ui_components()
 
     def update_ui_components(self):
-        platelet_descriptor = ""
-        if simVars.platelets > 450:
-            platelet_descriptor = "(thrombocytosis)"
-        elif simVars.platelets < 150:
-            platelet_descriptor = "(thrombocytopaenia)"
-        self.plateletsLabel.setText(
-            f"Platelet Level: {simVars.platelets} * 10^9/L {platelet_descriptor}"
+        updating_labels = (
+            (self.vWFLabel2, simVars.vWF),
+            (self.plateletsLabel2, simVars.platelets),
+            (self.activatedPlateletsLabel2, simVars.activated_platelets),
+            (self.glycoprotein1bLabel2, simVars.glyc1b),
+            (self.glycoprotein2b3aLabel2, simVars.glyc2b3a),
+            (self.prostacyclinLabel2, simVars.prostacyclin),
+            (self.endothelinLabel2, simVars.endothelin),
+            (self.nitricOxideLabel2, simVars.nitric_oxide),
+            (self.alphaGranulesLabel2, simVars.alpha_granules),
+            (self.denseGranulesLabel2, simVars.dense_granules),
+            (self.serotoninLabel2, simVars.serotonin),
+            (self.aDPLabel2, simVars.aDP),
+            (self.calciumIonsLabel2, simVars.calcium_ions),
         )
-        self.fibrinogenLabel.setText(f"\tFibrinogen (factor I) = {simVars.fibrinogen}")
-        self.fibrinLabel.setText(f"\tFibrin (factor Ia) = {simVars.fibrin}")
-        self.prothrombinLabel.setText(
-            f"\tProthrombin (factor II) = {simVars.prothrombin}"
-        )
-        self.thrombinLabel.setText(f"\tThrombin (factor IIa) = {simVars.thrombin}")
-        self.tissueFactorLabel.setText(
-            f"\tExposed Tissue Factor (factor III): {simVars.tissue_factor}"
-        )
-        self.factor7Label.setText(f"\tFactor VII: {simVars.factor7}")
-        self.factor7aLabel.setText(f"\tFactor VIIa: {simVars.factor7a}")
-        self.factor8Label.setText(f"\tFactor VIII: {simVars.factor8}")
-        self.factor8aLabel.setText(f"\tFactor VIIIa: {simVars.factor8a}")
-        self.factor9Label.setText(f"\tFactor IX: {simVars.factor9}")
-        self.factor9aLabel.setText(f"\tFactor IXa: {simVars.factor9a}")
-        self.factor11Label.setText(f"\tFactor XI: {simVars.factor11}")
-        self.factor11aLabel.setText(f"\tFactor XIa: {simVars.factor11a}")
-        self.factor12Label.setText(f"\tFactor XII: {simVars.factor12}")
-        self.factor12aLabel.setText(f"\tFactor XIIa: {simVars.factor12a}")
-        self.factor10Label.setText(f"\tFactor X: {simVars.factor10}")
-        self.factor10aLabel.setText(f"\tFactor Xa: {simVars.factor10a}")
-        self.factor5Label.setText(f"\tFactor V: {simVars.factor5}")
-        self.factor5aLabel.setText(f"\tFactor Va: {simVars.factor5a}")
+        for label_pair in updating_labels:
+            label_pair[0].setText(str(round(label_pair[1], 3)))
 
-        self.calciumIonsLabel.setText(
-            f"Ca2+ (factor IV) Level: {simVars.calcium_ions}mmol/L"
+        updating_labels = (
+            (
+                self.fibrinogenLabel,
+                f"\tFibrinogen (factor I): {round(simVars.fibrinogen, 3)}",
+            ),
+            (self.fibrinLabel, f"\tFibrin (factor Ia): {round(simVars.fibrin, 3)}"),
+            (
+                self.prothrombinLabel,
+                f"\tProthrombin (factor II): {round(simVars.prothrombin, 3)}",
+            ),
+            (
+                self.thrombinLabel,
+                f"\tThrombin (factor IIa): {round(simVars.thrombin, 3)}",
+            ),
+            (
+                self.tissueFactorLabel,
+                f"\tExposed Tissue Factor (factor III): {round(simVars.tissue_factor, 3)}",
+            ),
+            (self.factor7Label, f"\tFactor VII: {round(simVars.factor7, 3)}"),
+            (self.factor7aLabel, f"\tFactor VII: {round(simVars.factor7a, 3)}"),
+            (self.factor8Label, f"\tFactor VIII: {round(simVars.factor8, 3)}"),
+            (self.factor8aLabel, f"\tFactor VIIIa: {round(simVars.factor8a, 3)}"),
+            (self.factor9Label, f"\tFactor IX: {round(simVars.factor9, 3)}"),
+            (self.factor9aLabel, f"\tFactor IXa: {round(simVars.factor9a, 3)}"),
+            (self.factor11Label, f"\tFactor XI: {round(simVars.factor11, 3)}"),
+            (self.factor11aLabel, f"\tFactor XIa: {round(simVars.factor11a, 3)}"),
+            (self.factor12Label, f"\tFactor XII: {round(simVars.factor12, 3)}"),
+            (self.factor12aLabel, f"\tFactor XIIa: {round(simVars.factor12a, 3)}"),
+            (self.factor10Label, f"\tFactor X: {round(simVars.factor10, 3)}"),
+            (self.factor10aLabel, f"\tFactor Xa: {round(simVars.factor10a, 3)}"),
+            (self.factor5Label, f"\tFactor V: {round(simVars.factor5, 3)}"),
+            (self.factor5aLabel, f"\tFactor Va: {round(simVars.factor5a, 3)}"),
+            (self.factor13Label, f"\tFactor XIII: {round(simVars.factor13, 3)}"),
+            (self.factor13aLabel, f"\tFactor XIIIa: {round(simVars.factor13a, 3)}"),
+            (
+                self.crossLinkedFibrinLabel,
+                f"\tFactor XIII: {round(simVars.factor13, 3)}",
+            ),
+            (self.factor13aLabel, f"\tFactor XIIIa: {round(simVars.factor13a, 3)}"),
+            (
+                self.crossLinkedFibrinLabel,
+                f"\tCross-linked Fibrin: {round(simVars.cross_linked_fibrin, 3)}",
+            ),
+            (self.iNRLabel, f"INR: {round(float(simVars.iNR), 2)} (extrinsic measure)"),
+            (
+                self.aPTTLabel,
+                f"Activated Partial Thromboplastin Time: {simVars.aPTT}s (intrinsic measure)",
+            ),
+            (self.currentTimeLabel, f"Current Time: {simVars.current_time//2}"),
+            (
+                self.exposedSubendotheliumLabel,
+                f"\tExposed Subendothelium (containing Kallikrein & HMWK): {simVars.subendothelium}",
+            ),
         )
-        self.factor13Label.setText(f"\tFactor XIII: {simVars.factor13}")
-        self.factor13aLabel.setText(f"\tFactor XIIIa: {simVars.factor13a}")
-        self.crossLinkedFibrinLabel.setText(
-            f"\tCross-linked Fibrin: {simVars.cross_linked_fibrin}"
-        )
-        self.iNRLabel.setText(
-            f"INR: {round(float(simVars.iNR), 2)} (extrinsic measure)"
-        )
-        self.aPTTLabel.setText(
-            f"Activated Partial Thromboplastin Time: {simVars.aPTT}s (intrinsic measure)"
-        )
-        self.currentTimeLabel.setText(f"Current Time: {simVars.current_time//2}")
-        self.exposedSubendotheliumLabel.setText(
-            f"\tExposed subendothelium (containing Kallikrein & HMWK): {simVars.subendothelium}"
-        )
+
+        for label in updating_labels:
+            label[0].setText(label[1])
 
 
 app = QApplication([])
