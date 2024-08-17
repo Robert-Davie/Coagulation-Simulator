@@ -8,6 +8,7 @@ cross_linked_over_time = []
 
 @dataclass
 class SimulationVariables:
+    speed: int = 1
     vWF: float = 0
     activated_platelets: float = 0
     glyc1b: float = 0
@@ -78,3 +79,52 @@ class SimulationVariables:
             change = round(min(self.__dict__[source], choice2), 10)
             self.__dict__[destination] += change
             self.__dict__[source] -= change
+
+    def time_passes(self):
+        self.catalyze("subendothelium", "factor12", "factor12a", 100)
+        self.catalyze("factor12a", "factor11", "factor11a", 500)
+        self.catalyze(
+            "factor11a",
+            "factor9",
+            "factor9a",
+            2000,
+            calcium=True,
+            catalyst_2="factor7a",
+            multiplier=200,
+        )
+        self.catalyze(
+            "factor9a",
+            "factor10",
+            "factor10a",
+            120000,
+            catalyst_2="factor8a",
+            multiplier=3000,
+            calcium=True,
+        )
+        self.catalyze("tissue_factor", "factor7", "factor7a", 1000)
+        self.catalyze("factor7a", "factor10", "factor10a", 1000)
+        self.catalyze(
+            "factor10a",
+            "prothrombin",
+            "thrombin",
+            120000,
+            catalyst_2="factor5a",
+            multiplier=6000,
+            calcium=True,
+        )
+        self.catalyze("thrombin", "factor11", "factor11a", 1000)
+        self.catalyze("thrombin", "factor8", "factor8a", 1000)
+        self.catalyze("thrombin", "factor7", "factor7a", 1000)
+        self.catalyze(
+            "thrombin",
+            "factor5",
+            "factor5a",
+            120000,
+            catalyst_2="factor10a",
+            multiplier=6000,
+        )
+        self.catalyze("thrombin", "fibrinogen", "fibrin", 15, calcium=True)
+        self.catalyze("thrombin", "factor13", "factor13a", 19)
+        self.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 40)
+
+        self.current_time += 1

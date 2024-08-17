@@ -4,10 +4,12 @@ from PyQt5.QtWidgets import (
     QWidget,
     QPushButton,
     QGridLayout,
+    QHBoxLayout,
+    QVBoxLayout,
     QMainWindow,
     QComboBox,
 )
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import QTimer, Qt
 from simulation_variables import SimulationVariables, cross_linked_over_time
 
@@ -16,6 +18,7 @@ CREAM = "#FFFDD0"
 GOLD = "#FFD700"
 ROYALBLUE = "#4169E1"
 simVars = SimulationVariables()
+SIMULATION_END = 50000
 
 disorders = [
     "None",
@@ -31,11 +34,13 @@ disorders = [
 
 speeds = ["x 1", "x 2", "x 4", "x 8", "x 16", "x 32", "x 0.5"]
 
+boldFont = QFont()
+boldFont.setBold(True)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.speed = 1
         self.timer = QTimer()
         self.timer.timeout.connect(self.time_passes)
 
@@ -44,15 +49,30 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Coagulation Simulator")
         self.layout = QGridLayout()
 
-        column_widths = (
-            (0, 15),
-            (1, 5),
-            (2, 45),
-            (3, 45),
-            (4, 15),
-        )
+        column_widths = ((0, 15), (1, 5), (2, 15), (3, 5), (4, 30), (5, 10))
         for i in column_widths:
             self.layout.setColumnStretch(i[0], i[1])
+
+        # (
+        #     self.layout_0,
+        #     self.layout_1,
+        #     self.layout_2,
+        #     self.layout_3,
+        #     self.layout_4,
+        #     self.layout_5,
+        # ) = (QVBoxLayout() for i in range(6))
+        #
+        # self.layouts = (
+        #     self.layout_0,
+        #     self.layout_1,
+        #     self.layout_2,
+        #     self.layout_3,
+        #     self.layout_4,
+        #     self.layout_5,
+        # )
+        #
+        # for number, layout in enumerate(self.layouts):
+        #     self.layout.addLayout(layout)
 
         self.setup_ui_components()
 
@@ -64,22 +84,43 @@ class MainWindow(QMainWindow):
 
     def setup_ui_components(self):
         intrinsic_row = 1
-        extrinsic_row = intrinsic_row + 10
-        common_pathway_row = extrinsic_row + 4
+        extrinsic_row = intrinsic_row + 11
+        common_pathway_row = extrinsic_row + 5
 
         actions_row = 8
         disease_row = actions_row + 2
 
-        self.injuryButton = self.create_button(
-            actions_row, 4, "Injury", GOLD, self.injury_occurs
+        self.primaryHaemLabel = self.create_widget(
+            0, 0, text="Primary Haemostasis", widget_type="LABEL"
         )
-        self.addFibrinogen = self.create_button(
-            actions_row + 1, 4, "Add Fibrinogen", GOLD, self.increase_fibrinogen_level
+        self.set_bold(self.primaryHaemLabel)
+        self.secondaryHaemLabel = self.create_widget(
+            0, 2, text="Secondary Haemostasis", widget_type="LABEL"
+        )
+        self.set_bold(self.secondaryHaemLabel)
+
+        self.injuryButton = self.create_widget(
+            actions_row,
+            5,
+            text="Injury",
+            colour=GOLD,
+            action=self.injury_occurs,
+            widget_type="BUTTON",
+        )
+        self.addFibrinogen = self.create_widget(
+            actions_row + 1,
+            5,
+            text="Add Fibrinogen",
+            colour=GOLD,
+            action=self.increase_fibrinogen_level,
+            widget_type="BUTTON",
         )
 
-        self.create_label(disease_row, 4, "Disorder:")
+        self.create_widget(disease_row, 5, text="Disorder:", widget_type="LABEL")
 
-        self.disorderBox = self.create_combobox(disease_row + 1, 4, disorders)
+        self.disorderBox = self.create_widget(
+            disease_row + 1, 5, options=disorders, widget_type="COMBOBOX"
+        )
         self.disorderBox.currentTextChanged.connect(self.disorder_changed)
         self.disorderBox.setSizeAdjustPolicy(
             self.disorderBox.AdjustToMinimumContentsLengthWithIcon
@@ -98,7 +139,13 @@ class MainWindow(QMainWindow):
             self.oneTimeStep,
             self.resetButton,
         ) = (
-            self.create_button(i, 4, simulation_button_names[i], ROYALBLUE)
+            self.create_widget(
+                i,
+                5,
+                text=simulation_button_names[i],
+                colour=ROYALBLUE,
+                widget_type="BUTTON",
+            )
             for i in range(0, 4)
         )
 
@@ -107,10 +154,14 @@ class MainWindow(QMainWindow):
         self.oneTimeStep.clicked.connect(self.time_passes)
         self.resetButton.clicked.connect(self.reset_simulation)
 
-        self.pickSpeedLabel = self.create_label(4, 4, "Speed:")
-        self.speedChoiceBox = self.create_combobox(5, 4, speeds)
+        self.pickSpeedLabel = self.create_widget(
+            4, 5, text="Speed:", widget_type="LABEL"
+        )
+        self.speedChoiceBox = self.create_widget(
+            5, 5, options=speeds, widget_type="COMBOBOX"
+        )
         self.speedChoiceBox.currentIndexChanged.connect(self.new_speed)
-        self.currentTimeLabel = self.create_label(6, 4)
+        self.currentTimeLabel = self.create_widget(6, 5, widget_type="LABEL")
 
         (
             self.commonPathwayLabel,
@@ -125,16 +176,17 @@ class MainWindow(QMainWindow):
             self.factor13Label,
             self.factor13aLabel,
             self.crossLinkedFibrinLabel,
-        ) = (self.create_label(common_pathway_row + i, 2) for i in range(0, 12))
+        ) = (
+            self.create_widget(common_pathway_row + i, 2, widget_type="LABEL")
+            for i in range(0, 12)
+        )
 
         self.commonPathwayLabel.setText("Common Pathway")
-
-        self.primaryHaemLabel = self.create_label(0, 0, "Primary Haemostasis")
-        self.primaryHaemLabel.setAlignment(Qt.AlignLeft)
-        self.secondaryHaemLabel = self.create_label(0, 2, "Secondary Haemostasis")
+        self.set_bold(self.commonPathwayLabel)
 
         (
             self.intrinsicPathwayLabel,
+            self.aPTTLabel,
             self.exposedSubendotheliumLabel,
             self.factor12Label,
             self.factor12aLabel,
@@ -144,25 +196,29 @@ class MainWindow(QMainWindow):
             self.factor9aLabel,
             self.factor8Label,
             self.factor8aLabel,
-        ) = (self.create_label(intrinsic_row + i, 2) for i in range(0, 10))
+        ) = (
+            self.create_widget(intrinsic_row + i, 2, widget_type="LABEL")
+            for i in range(0, 11)
+        )
 
         self.intrinsicPathwayLabel.setText("Intrinsic Pathway")
+        self.aPTTLabel.setText("Activated Partial Thromboplastin Time (APTT)")
+        self.set_bold(self.intrinsicPathwayLabel)
 
         (
             self.extrinsicPathwayLabel,
+            self.iNRLabel,
             self.tissueFactorLabel,
             self.factor7Label,
             self.factor7aLabel,
-        ) = (self.create_label(extrinsic_row + i, 2) for i in range(0, 4))
+        ) = (
+            self.create_widget(extrinsic_row + i, 2, widget_type="LABEL")
+            for i in range(0, 5)
+        )
 
         self.extrinsicPathwayLabel.setText("Extrinsic Pathway")
-
-        (
-            self.testResultsLabel,
-            self.iNRLabel,
-            self.aPTTLabel,
-            self.descriptionLabel,
-        ) = (self.create_label(i, 3, "", WHITE) for i in range(4))
+        self.iNRLabel.setText("International Normalized Ratio (INR)")
+        self.set_bold(self.extrinsicPathwayLabel)
 
         (
             self.vWFLabel,
@@ -178,7 +234,7 @@ class MainWindow(QMainWindow):
             self.serotoninLabel,
             self.aDPLabel,
             self.calciumIonsLabel,
-        ) = (self.create_label(i, 0) for i in range(1, 14))
+        ) = (self.create_widget(i, 0, widget_type="LABEL") for i in range(1, 14))
 
         self.vWFLabel.setText("\tVon Willebrand Factor")
         self.plateletsLabel.setText("\tInactive Platelets")
@@ -208,44 +264,55 @@ class MainWindow(QMainWindow):
             self.serotoninLabel2,
             self.aDPLabel2,
             self.calciumIonsLabel2,
-        ) = (self.create_label(i, 1, "test", set_align="RIGHT") for i in range(1, 14))
+        ) = (
+            self.create_widget(i, 1, "", alignment="LEFT", widget_type="LABEL")
+            for i in range(1, 14)
+        )
 
-        self.testResultsLabel.setText("Test Results:")
-        self.set_colour(self.descriptionLabel, "#90EE90")
-
-    def create_button(self, row, column, text, colour, action=None):
-        this_button = QPushButton(text)
-        self.layout.addWidget(this_button, row, column)
-        self.set_colour(this_button, colour)
-        if action is not None:
-            this_button.clicked.connect(action)
-        return this_button
-
-    def create_label(self, row, column, text="", colour="", set_align="RIGHT"):
-        this_label = QLabel()
-        self.layout.addWidget(this_label, row, column)
-        if colour != "":
-            self.set_colour(this_label, colour)
-        this_label.setText(text)
-        alignment = Qt.AlignLeft
-        match set_align:
+    def create_widget(
+        self,
+        row,
+        column,
+        text="",
+        colour="",
+        action=None,
+        alignment="RIGHT",
+        widget_type="",
+        options=None,
+    ):
+        match widget_type:
+            case "LABEL":
+                widget = QLabel()
+            case "BUTTON":
+                widget = QPushButton()
+            case "COMBOBOX":
+                widget = QComboBox()
+            case _:
+                raise Exception(f"widget type '{widget_type}' not valid")
+        self.layout.addWidget(widget, row, column)
+        if widget_type in {"LABEL", "BUTTON"}:
+            widget.setText(text)
+        self.set_colour(widget, colour)
+        if widget_type == "BUTTON" and action is not None:
+            widget.clicked.connect(action)
+        match alignment:
             case "RIGHT":
                 alignment = Qt.AlignRight
             case "CENTRE":
                 alignment = Qt.AlignCenter
             case "LEFT":
                 alignment = Qt.AlignLeft
-        this_label.setAlignment(alignment)
-        return this_label
-
-    def create_combobox(self, row, column, options):
-        this_box = QComboBox()
-        self.layout.addWidget(this_box, row, column)
-        this_box.addItems(options)
-        return this_box
+        if widget_type in {"LABEL"}:
+            widget.setAlignment(alignment)
+        if widget_type == "COMBOBOX":
+            widget.addItems(options)
+        return widget
 
     def set_colour(self, widget, colour):
         widget.setStyleSheet(f"background-color : {colour}")
+
+    def set_bold(self, widget):
+        widget.setFont(boldFont)
 
     def injury_occurs(self):
         simVars.tissue_factor = 100
@@ -258,7 +325,7 @@ class MainWindow(QMainWindow):
         self.update_ui_components()
 
     def start_timer(self):
-        timer_speed = int(500 // self.speed)
+        timer_speed = int(500 // simVars.speed)
         self.timer.start(timer_speed)
         self.startTimerButton.setDisabled(True)
         self.speedChoiceBox.setDisabled(True)
@@ -287,24 +354,24 @@ class MainWindow(QMainWindow):
             5: 32,
             6: 0.5,
         }
-        self.speed = speed_dictionary[index]
+        simVars.speed = speed_dictionary[index]
 
     def disorder_changed(self, text):
         simVars.reset()
-        match text:
-            case "Liver Disorder":
+        match text.upper():
+            case "LIVER DISORDER":
                 simVars.prothrombin = 100
                 simVars.factor7 = 10
                 simVars.factor9 = 10
                 simVars.factor10 = 10
                 simVars.platelets = 100
-            case "Haemophilia C":
+            case "HAEMOPHILIA C":
                 simVars.factor11 = 0
-            case "Haemophilia B":
+            case "HAEMOPHILIA B":
                 simVars.factor9 = 0
-            case "Haemophilia A (Mild)":
+            case "HAEMOPHILIA A (MILD)":
                 simVars.factor8 = 500
-            case "Haemophilia A (Severe)":
+            case "HAEMOPHILIA A (SEVERE)":
                 simVars.factor8 = 0
             case _:
                 pass
@@ -312,56 +379,9 @@ class MainWindow(QMainWindow):
         self.update_ui_components()
 
     def time_passes(self):
-
-        simVars.catalyze("subendothelium", "factor12", "factor12a", 100)
-        simVars.catalyze("factor12a", "factor11", "factor11a", 500)
-        simVars.catalyze(
-            "factor11a",
-            "factor9",
-            "factor9a",
-            2000,
-            calcium=True,
-            catalyst_2="factor7a",
-            multiplier=200,
-        )
-        simVars.catalyze(
-            "factor9a",
-            "factor10",
-            "factor10a",
-            120000,
-            catalyst_2="factor8a",
-            multiplier=3000,
-            calcium=True,
-        )
-        simVars.catalyze("tissue_factor", "factor7", "factor7a", 1000)
-        simVars.catalyze("factor7a", "factor10", "factor10a", 1000)
-        simVars.catalyze(
-            "factor10a",
-            "prothrombin",
-            "thrombin",
-            120000,
-            catalyst_2="factor5a",
-            multiplier=6000,
-            calcium=True,
-        )
-        simVars.catalyze("thrombin", "factor11", "factor11a", 1000)
-        simVars.catalyze("thrombin", "factor8", "factor8a", 1000)
-        simVars.catalyze("thrombin", "factor7", "factor7a", 1000)
-        simVars.catalyze(
-            "thrombin",
-            "factor5",
-            "factor5a",
-            120000,
-            catalyst_2="factor10a",
-            multiplier=6000,
-        )
-        simVars.catalyze("thrombin", "fibrinogen", "fibrin", 15, calcium=True)
-        simVars.catalyze("thrombin", "factor13", "factor13a", 19)
-        simVars.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 40)
-
-        simVars.current_time += 1
+        simVars.time_passes()
         cross_linked_over_time.append(simVars.cross_linked_fibrin)
-        if round(simVars.cross_linked_fibrin, 7) == 50000:
+        if round(simVars.cross_linked_fibrin, 4) == SIMULATION_END:
             self.stop_timer()
             for i in cross_linked_over_time:
                 print(i)
@@ -405,7 +425,7 @@ class MainWindow(QMainWindow):
                 f"\tExposed Tissue Factor (factor III): {round(simVars.tissue_factor, 3)}",
             ),
             (self.factor7Label, f"\tFactor VII: {round(simVars.factor7, 3)}"),
-            (self.factor7aLabel, f"\tFactor VII: {round(simVars.factor7a, 3)}"),
+            (self.factor7aLabel, f"\tFactor VIIa: {round(simVars.factor7a, 3)}"),
             (self.factor8Label, f"\tFactor VIII: {round(simVars.factor8, 3)}"),
             (self.factor8aLabel, f"\tFactor VIIIa: {round(simVars.factor8a, 3)}"),
             (self.factor9Label, f"\tFactor IX: {round(simVars.factor9, 3)}"),
@@ -429,15 +449,10 @@ class MainWindow(QMainWindow):
                 self.crossLinkedFibrinLabel,
                 f"\tCross-linked Fibrin: {round(simVars.cross_linked_fibrin, 3)}",
             ),
-            (self.iNRLabel, f"INR: {round(float(simVars.iNR), 2)} (extrinsic measure)"),
-            (
-                self.aPTTLabel,
-                f"Activated Partial Thromboplastin Time: {simVars.aPTT}s (intrinsic measure)",
-            ),
             (self.currentTimeLabel, f"Current Time: {simVars.current_time//2}"),
             (
                 self.exposedSubendotheliumLabel,
-                f"\tExposed Subendothelium (containing Kallikrein & HMWK): {simVars.subendothelium}",
+                f"\tExposed Subendothelium (with Kallikrein & HMWK): {simVars.subendothelium}",
             ),
         )
 
@@ -445,7 +460,8 @@ class MainWindow(QMainWindow):
             label[0].setText(label[1])
 
 
-app = QApplication([])
-window = MainWindow()
-window.show()
-app.exec()
+if __name__ == "__main__":
+    app = QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec()
