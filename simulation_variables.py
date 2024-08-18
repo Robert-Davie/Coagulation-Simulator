@@ -4,6 +4,7 @@ import random
 
 
 cross_linked_over_time = []
+thrombin_over_time = []
 
 
 @dataclass
