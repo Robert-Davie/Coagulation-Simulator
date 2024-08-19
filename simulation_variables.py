@@ -26,7 +26,7 @@ class SimulationVariables:
     injury_stage: int = -1
     iNR: float = 1.0
     aPTT: float = 30
-    calcium_ions: float = 2.35
+    calcium_ions: float = 1.2
     fibrinogen: float = 50000
     fibrin: float = 0
     prothrombin: float = 10000
@@ -50,7 +50,22 @@ class SimulationVariables:
     factor13a: float = 0
     cross_linked_fibrin: float = 0
     platelets: float = 300
-    time: int = 0
+    protein_c: float = 0
+    protein_ca: float = 0
+    tFPI: float = 0
+    antithrombin3: float = 0
+    thrombomodulin: float = 0
+    protein_s: float = 0
+    c1_esterase_inhibitor: float = 0
+    plasmin: float = 0
+    plasminogen: float = 0
+    tAFI: float = 1000
+    tAFIa: float = 0
+    tPA: float = 0
+    pAI1: float = 100
+    a2A: float = 0
+    fDP: float = 0
+    dummy: float = 0
 
     def reset(self):
         self.__dict__ = SimulationVariables().__dict__
@@ -62,7 +77,12 @@ class SimulationVariables:
         destination,
         factor,
         catalyst_2=None,
-        multiplier=1,
+        multiplier=1.0,
+        inhibitor_1=None,
+        multiplier_i1=0.0,
+        inhibitor_2=None,
+        multiplier_i2=0.0,
+        tail=100.0,
         calcium=False,
         vitamin_k=False,
     ):
@@ -70,14 +90,25 @@ class SimulationVariables:
         catalyst_2_amount = 0
         if catalyst_2:
             catalyst_2_amount = self.__dict__[catalyst_2]
+        inhibitor_amount = 0
+        i1, i2 = 0, 0
+        if inhibitor_1:
+            i1 = self.__dict__[inhibitor_1]
+        if inhibitor_2:
+            i2 = self.__dict__[inhibitor_2]
+        inhibitor_amount = max(
+            i1 * multiplier_i1,
+            i2 * multiplier_i2,
+        )
         if self.__dict__[source] > 0:
             choice2 = max(
-                catalyst_amount / factor,
-                catalyst_2_amount / factor,
-                min(catalyst_amount, catalyst_2_amount) * multiplier / factor,
+                catalyst_amount / factor - inhibitor_amount,
+                catalyst_2_amount / factor - inhibitor_amount,
+                min(catalyst_amount, catalyst_2_amount) * (multiplier / factor)
+                - inhibitor_amount,
                 0,
             )
-            change = round(min(self.__dict__[source], choice2), 10)
+            change = round(min(self.__dict__[source] / tail, choice2), 10)
             self.__dict__[destination] += change
             self.__dict__[source] -= change
 
@@ -93,6 +124,7 @@ class SimulationVariables:
             catalyst_2="factor7a",
             multiplier=200,
         )
+        # convert X to Xa by VIIIa and IXa
         self.catalyze(
             "factor9a",
             "factor10",
@@ -101,9 +133,12 @@ class SimulationVariables:
             catalyst_2="factor8a",
             multiplier=3000,
             calcium=True,
+            inhibitor_1="protein_ca",
+            multiplier_i1=0.1,
         )
         self.catalyze("tissue_factor", "factor7", "factor7a", 1000)
         self.catalyze("factor7a", "factor10", "factor10a", 1000)
+        # convert II to IIa by Xa
         self.catalyze(
             "factor10a",
             "prothrombin",
@@ -112,6 +147,10 @@ class SimulationVariables:
             catalyst_2="factor5a",
             multiplier=6000,
             calcium=True,
+            inhibitor_1="tFPI",
+            multiplier_i1=0.1,
+            inhibitor_2="protein_ca",
+            multiplier_i2=0.1,
         )
         self.catalyze("thrombin", "factor11", "factor11a", 1000)
         self.catalyze("thrombin", "factor8", "factor8a", 1000)
@@ -126,6 +165,21 @@ class SimulationVariables:
         )
         self.catalyze("thrombin", "fibrinogen", "fibrin", 15, calcium=True)
         self.catalyze("thrombin", "factor13", "factor13a", 19)
-        self.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 40)
+        self.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 50)
+        self.catalyze("tPA", "plasminogen", "plasmin", 20)
+        self.catalyze(
+            "plasmin",
+            "cross_linked_fibrin",
+            "fDP",
+            20,
+            inhibitor_1="tAFIa",
+            multiplier_i1=0.15,
+        )
+        self.catalyze(
+            "plasmin", "fibrin", "fDP", 40, inhibitor_1="tAFIa", multiplier_i1=0.15
+        )
+        self.catalyze("thrombin", "tAFI", "tAFIa", 400)
+        self.catalyze("thrombin", "protein_c", "protein_ca", 20)
+        self.catalyze("pAI1", "tPA", "dummy", 500)
 
         self.current_time += 1

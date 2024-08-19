@@ -36,7 +36,7 @@ disorders = [
     "Factor V Leiden",
 ]
 
-speeds = ["x 1", "x 2", "x 4", "x 8", "x 16", "x 32", "x 0.5"]
+speeds = ["x 1", "x 2", "x 4", "x 8", "x 16", "x 32", "x 64", "x 0.5"]
 
 boldFont = QFont()
 boldFont.setBold(True)
@@ -66,22 +66,12 @@ class MainWindow(QMainWindow):
         self.showMaximized()
 
     def setup_ui_components(self):
-        intrinsic_row = 1
-        extrinsic_row = intrinsic_row + 11
-        common_pathway_row = extrinsic_row + 5
+        self.intrinsic_row = 1
+        self.extrinsic_row = self.intrinsic_row + 11
+        self.common_pathway_row = self.extrinsic_row + 5
 
         actions_row = 8
-        disease_row = actions_row + 2
-
-        self.primaryHaemLabel = self.create_widget(
-            0, 0, text="Primary Haemostasis", widget_type="LABEL"
-        )
-        self.set_bold(self.primaryHaemLabel)
-        self.secondaryHaemLabel = self.create_widget(
-            0, 2, text="Secondary Haemostasis", widget_type="LABEL"
-        )
-        self.set_bold(self.secondaryHaemLabel)
-
+        disease_row = actions_row + 3
         self.injuryButton = self.create_widget(
             actions_row,
             5,
@@ -98,6 +88,14 @@ class MainWindow(QMainWindow):
             action=self.increase_fibrinogen_level,
             widget_type="BUTTON",
         )
+        self.fibrinolysisButton = self.create_widget(
+            actions_row + 2,
+            5,
+            text="Fibrinolysis",
+            colour=GOLD,
+            action=self.fibrinolysis_occurs,
+            widget_type="BUTTON",
+        )
 
         self.create_widget(disease_row, 5, text="Disorder:", widget_type="LABEL")
 
@@ -108,7 +106,14 @@ class MainWindow(QMainWindow):
         self.disorderBox.setSizeAdjustPolicy(
             self.disorderBox.AdjustToMinimumContentsLengthWithIcon
         )
+        self.setup_time_functionality()
+        self.setup_primary_haem()
+        self.setup_secondary_haem()
+        self.setup_anticoagulation()
+        self.setup_fibrinolysis()
+        self.set_up_plot()
 
+    def setup_time_functionality(self):
         simulation_button_names = (
             "Start/Continue Simulation",
             "Pause Simulation",
@@ -146,6 +151,147 @@ class MainWindow(QMainWindow):
         self.speedChoiceBox.currentIndexChanged.connect(self.new_speed)
         self.currentTimeLabel = self.create_widget(6, 5, widget_type="LABEL")
 
+    def setup_fibrinolysis(self):
+        self.fibrinolysisLabel = self.create_widget(
+            22, 0, widget_type="LABEL", text="Fibrinolysis"
+        )
+        self.set_bold(self.fibrinolysisLabel)
+        fibrinolysis_texts = (
+            "Plasminogen",
+            "Plasmin",
+            "Fibrin Degradation Products (e.g. D-Dimer)",
+            "t-PA",
+            "TAFI",
+            "TAFIa",
+            "Plasmin Activator Inhibitor 1",
+            "Alpha 2 Antiplasmin",
+        )
+        (
+            self.plasminLabel,
+            self.plasminogenLabel,
+            self.fDPLabel,
+            self.tPALabel,
+            self.tAFILabel,
+            self.tAFIaLabel,
+            self.pAI1Label,
+            self.a2ALabel,
+        ) = (
+            self.create_widget(
+                23 + i, 0, widget_type="LABEL", text=fibrinolysis_texts[i]
+            )
+            for i in range(8)
+        )
+
+        (
+            self.plasminLabel2,
+            self.plasminogenLabel2,
+            self.fDPLabel2,
+            self.tPALabel2,
+            self.tAFILabel2,
+            self.tAFIaLabel2,
+            self.pAI1Label2,
+            self.a2ALabel2,
+        ) = (self.create_widget(23 + i, 1, widget_type="LABEL") for i in range(8))
+
+    def setup_anticoagulation(self):
+        self.anticoagLabel = self.create_widget(
+            14, 0, widget_type="LABEL", text="Antithrombotic Pathway"
+        )
+        self.set_bold(self.anticoagLabel)
+        anticoagulation_texts = (
+            "Protein C",
+            "Activated Protein C",
+            "TFPI",
+            "Antithrombin III",
+            "Thrombomodulin",
+            "Protein S",
+            "C1 Esterase Inhibitor",
+        )
+
+        (
+            self.proteinCLabel,
+            self.proteinCaLabel,
+            self.tFPILabel,
+            self.antithrombin3Label,
+            self.thrombomodulinLabel,
+            self.proteinSLabel,
+            self.c1EsteraseInhibitorLabel,
+        ) = (
+            self.create_widget(
+                15 + i, 0, widget_type="LABEL", text=anticoagulation_texts[i]
+            )
+            for i in range(7)
+        )
+
+        (
+            self.proteinCLabel2,
+            self.proteinCaLabel2,
+            self.tFPILabel2,
+            self.antithrombin3Label2,
+            self.thrombomodulinLabel2,
+            self.proteinSLabel2,
+            self.c1EsteraseInhibitorLabel2,
+        ) = (self.create_widget(15 + i, 1, widget_type="LABEL") for i in range(7))
+
+    def setup_primary_haem(self):
+        self.primaryHaemLabel = self.create_widget(
+            0, 0, text="Primary Haemostasis", widget_type="LABEL"
+        )
+        self.set_bold(self.primaryHaemLabel)
+        (
+            self.vWFLabel,
+            self.plateletsLabel,
+            self.activatedPlateletsLabel,
+            self.glycoprotein1bLabel,
+            self.glycoprotein2b3aLabel,
+            self.endothelinLabel,
+            self.nitricOxideLabel,
+            self.prostacyclinLabel,
+            self.alphaGranulesLabel,
+            self.denseGranulesLabel,
+            self.serotoninLabel,
+            self.aDPLabel,
+            self.calciumIonsLabel,
+        ) = (self.create_widget(i, 0, widget_type="LABEL") for i in range(1, 14))
+
+        self.vWFLabel.setText("\tVon Willebrand Factor")
+        self.plateletsLabel.setText("\tInactive Platelets")
+        self.activatedPlateletsLabel.setText("\tActivated Platelets")
+        self.glycoprotein1bLabel.setText("\tGlycoprotein Ib")
+        self.glycoprotein2b3aLabel.setText("\tGlycoprotein IIb/IIIa")
+        self.endothelinLabel.setText("\tEndothelin")
+        self.nitricOxideLabel.setText("\tNitric Oxide")
+        self.prostacyclinLabel.setText("\tProstacyclin")
+        self.alphaGranulesLabel.setText("\tAlpha Granules")
+        self.denseGranulesLabel.setText("\tDense Granules")
+        self.serotoninLabel.setText("\tSerotonin")
+        self.aDPLabel.setText("\tADP")
+        self.calciumIonsLabel.setText("\tCalcium 2+ Ions")
+
+        (
+            self.vWFLabel2,
+            self.plateletsLabel2,
+            self.activatedPlateletsLabel2,
+            self.glycoprotein1bLabel2,
+            self.glycoprotein2b3aLabel2,
+            self.endothelinLabel2,
+            self.nitricOxideLabel2,
+            self.prostacyclinLabel2,
+            self.alphaGranulesLabel2,
+            self.denseGranulesLabel2,
+            self.serotoninLabel2,
+            self.aDPLabel2,
+            self.calciumIonsLabel2,
+        ) = (
+            self.create_widget(i, 1, "", alignment="RIGHT", widget_type="LABEL")
+            for i in range(1, 14)
+        )
+
+    def setup_secondary_haem(self):
+        self.secondaryHaemLabel = self.create_widget(
+            0, 2, text="Secondary Haemostasis", widget_type="LABEL"
+        )
+        self.set_bold(self.secondaryHaemLabel)
         common_pathway_names = (
             "Common Pathway",
             "Factor X",
@@ -176,7 +322,7 @@ class MainWindow(QMainWindow):
             self.crossLinkedFibrinLabel2,
         ) = (
             self.create_widget(
-                common_pathway_row + i,
+                self.common_pathway_row + i,
                 2,
                 text=common_pathway_names[i],
                 widget_type="LABEL",
@@ -200,7 +346,7 @@ class MainWindow(QMainWindow):
             self.crossLinkedFibrinLabel,
         ) = (
             self.create_widget(
-                common_pathway_row + i, 3, widget_type="LABEL", alignment="RIGHT"
+                self.common_pathway_row + i, 3, widget_type="LABEL", alignment="RIGHT"
             )
             for i in range(1, 12)
         )
@@ -208,7 +354,7 @@ class MainWindow(QMainWindow):
         intrinsic_names = (
             "Intrinsic Pathway",
             "Activated Partial Thromboplastin Time (APTT)",
-            "Exposed Subendothelium (with Kallikrein & HMWK)",
+            "Kallikrein & HMWK",
             "Factor XII",
             "Factor XIIa",
             "Factor XI",
@@ -233,7 +379,7 @@ class MainWindow(QMainWindow):
             self.factor8aLabel2,
         ) = (
             self.create_widget(
-                intrinsic_row + i,
+                self.intrinsic_row + i,
                 2,
                 widget_type="LABEL",
                 alignment="RIGHT",
@@ -243,6 +389,7 @@ class MainWindow(QMainWindow):
         )
 
         (
+            self.aPTTLabel,
             self.exposedSubendotheliumLabel,
             self.factor12Label,
             self.factor12aLabel,
@@ -254,9 +401,9 @@ class MainWindow(QMainWindow):
             self.factor8aLabel,
         ) = (
             self.create_widget(
-                intrinsic_row + i, 3, widget_type="LABEL", alignment="RIGHT"
+                self.intrinsic_row + i, 3, widget_type="LABEL", alignment="RIGHT"
             )
-            for i in range(2, 11)
+            for i in range(1, 11)
         )
 
         self.intrinsicPathwayLabel2.setText("Intrinsic Pathway")
@@ -278,7 +425,7 @@ class MainWindow(QMainWindow):
             self.factor7aLabel2,
         ) = (
             self.create_widget(
-                extrinsic_row + i,
+                self.extrinsic_row + i,
                 2,
                 widget_type="LABEL",
                 text=extrinsic_names[i],
@@ -288,81 +435,41 @@ class MainWindow(QMainWindow):
         )
 
         (
+            self.iNRLabel,
             self.tissueFactorLabel,
             self.factor7Label,
             self.factor7aLabel,
         ) = (
             self.create_widget(
-                extrinsic_row + i, 3, widget_type="LABEL", alignment="RIGHT"
+                self.extrinsic_row + i, 3, widget_type="LABEL", alignment="RIGHT"
             )
-            for i in range(2, 5)
+            for i in range(1, 5)
         )
 
         self.extrinsicPathwayLabel2.setText("Extrinsic Pathway")
         self.iNRLabel2.setText("International Normalized Ratio (INR)")
         self.set_bold(self.extrinsicPathwayLabel2)
 
-        (
-            self.vWFLabel,
-            self.plateletsLabel,
-            self.activatedPlateletsLabel,
-            self.glycoprotein1bLabel,
-            self.glycoprotein2b3aLabel,
-            self.endothelinLabel,
-            self.nitricOxideLabel,
-            self.prostacyclinLabel,
-            self.alphaGranulesLabel,
-            self.denseGranulesLabel,
-            self.serotoninLabel,
-            self.aDPLabel,
-            self.calciumIonsLabel,
-        ) = (self.create_widget(i, 0, widget_type="LABEL") for i in range(1, 14))
-
-        self.vWFLabel.setText("\tVon Willebrand Factor")
-        self.plateletsLabel.setText("\tInactive Platelets")
-        self.activatedPlateletsLabel.setText("\tActivated Platelets")
-        self.glycoprotein1bLabel.setText("\tGlycoprotein Ib")
-        self.glycoprotein2b3aLabel.setText("\tGlycoprotein IIb/IIIa")
-        self.endothelinLabel.setText("\tEndothelin")
-        self.nitricOxideLabel.setText("\tNitric Oxide")
-        self.prostacyclinLabel.setText("\tProstacyclin")
-        self.alphaGranulesLabel.setText("\tAlpha Granules")
-        self.denseGranulesLabel.setText("\tDense Granules")
-        self.serotoninLabel.setText("\tSerotonin")
-        self.aDPLabel.setText("\tADP")
-        self.calciumIonsLabel.setText("\tCalcium")
-
-        (
-            self.vWFLabel2,
-            self.plateletsLabel2,
-            self.activatedPlateletsLabel2,
-            self.glycoprotein1bLabel2,
-            self.glycoprotein2b3aLabel2,
-            self.endothelinLabel2,
-            self.nitricOxideLabel2,
-            self.prostacyclinLabel2,
-            self.alphaGranulesLabel2,
-            self.denseGranulesLabel2,
-            self.serotoninLabel2,
-            self.aDPLabel2,
-            self.calciumIonsLabel2,
-        ) = (
-            self.create_widget(i, 1, "", alignment="RIGHT", widget_type="LABEL")
-            for i in range(1, 14)
-        )
+    def set_up_plot(self):
         self.plot_widget = pg.PlotWidget()
         self.layout.addWidget(self.plot_widget, 8, 4, 21, 1)
         self.plot_widget.setTitle("Compound Levels over Time", color=(0, 0, 0))
         self.plot_widget.setBackground("w")
+        self.plot_widget.addLegend()
         self.plot_widget.setYRange(0, 50000)
         self.plot_widget.setXRange(0, 1000)
         self.plot_widget.showGrid(x=True, y=True)
         self.pen = pg.mkPen(color=(255, 0, 0))
         time_list = [i / 2 for i in range(len(cross_linked_over_time))]
         self.line = self.plot_widget.plot(
-            time_list, cross_linked_over_time, pen=pg.mkPen(color=(255, 0, 0), width=3)
+            time_list,
+            cross_linked_over_time,
+            pen=pg.mkPen(color=(255, 0, 0), width=3),
+            name="line1",
         )
-        self.line2 = self.plot_widget.plot(pen=pg.mkPen(color=(0, 0, 255), width=3))
+        self.line2 = self.plot_widget.plot(
+            pen=pg.mkPen(color=(0, 0, 255), width=3), name="line2"
+        )
 
     def update_lines(self):
         time_list = [i / 2 for i in range(len(cross_linked_over_time))]
@@ -375,7 +482,7 @@ class MainWindow(QMainWindow):
 
         cross_linked_over_time.append(simVars.cross_linked_fibrin)
         thrombin_over_time.append(simVars.thrombin)
-        if round(simVars.cross_linked_fibrin, 4) == SIMULATION_END:
+        if simVars.current_time // 2 == 1000:
             self.stop_timer()
         self.update_ui_components()
 
@@ -434,7 +541,23 @@ class MainWindow(QMainWindow):
         simVars.fibrinogen += 20
         self.update_ui_components()
 
+    def fibrinolysis_occurs(self):
+        simVars.current_time = 0
+        simVars.plasminogen = 10000
+        simVars.tPA = 100
+        simVars.pAI1 = 0
+        simVars.fibrinogen = 0
+        simVars.cross_linked_fibrin = SIMULATION_END
+        self.clear_lines()
+        self.update_ui_components()
+
+    def clear_lines(self):
+        cross_linked_over_time.clear()
+        thrombin_over_time.clear()
+        self.update_lines()
+
     def start_timer(self):
+        self.new_speed(self.speedChoiceBox.currentIndex())
         timer_speed = int(500 // simVars.speed)
         self.timer.start(timer_speed)
         self.startTimerButton.setDisabled(True)
@@ -466,7 +589,8 @@ class MainWindow(QMainWindow):
             3: 8,
             4: 16,
             5: 32,
-            6: 0.5,
+            6: 64,
+            7: 0.5,
         }
         simVars.speed = speed_dictionary[index]
 
@@ -507,11 +631,6 @@ class MainWindow(QMainWindow):
             (self.serotoninLabel2, simVars.serotonin),
             (self.aDPLabel2, simVars.aDP),
             (self.calciumIonsLabel2, simVars.calcium_ions),
-        )
-        for label_pair in updating_labels:
-            label_pair[0].setText(format(label_pair[1], ".2f").rjust(10))
-
-        updating_labels = (
             (self.fibrinogenLabel, simVars.fibrinogen),
             (self.fibrinLabel, simVars.fibrin),
             (self.prothrombinLabel, simVars.prothrombin),
@@ -533,6 +652,23 @@ class MainWindow(QMainWindow):
             (self.factor5aLabel, simVars.factor5a),
             (self.factor13Label, simVars.factor13),
             (self.factor13aLabel, simVars.factor13a),
+            (self.iNRLabel, simVars.iNR),
+            (self.aPTTLabel, simVars.aPTT),
+            (self.proteinCLabel2, simVars.protein_c),
+            (self.proteinCaLabel2, simVars.protein_ca),
+            (self.tFPILabel2, simVars.tFPI),
+            (self.thrombomodulinLabel2, simVars.thrombomodulin),
+            (self.antithrombin3Label2, simVars.antithrombin3),
+            (self.proteinSLabel2, simVars.protein_s),
+            (self.c1EsteraseInhibitorLabel2, simVars.c1_esterase_inhibitor),
+            (self.plasminLabel2, simVars.plasmin),
+            (self.plasminogenLabel2, simVars.plasminogen),
+            (self.fDPLabel2, simVars.fDP),
+            (self.tPALabel2, simVars.tPA),
+            (self.tAFILabel2, simVars.tAFI),
+            (self.tAFIaLabel2, simVars.tAFIa),
+            (self.pAI1Label2, simVars.pAI1),
+            (self.a2ALabel2, simVars.a2A),
             (
                 self.crossLinkedFibrinLabel,
                 simVars.cross_linked_fibrin,
