@@ -13,13 +13,16 @@ from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import QTimer, Qt
 from simulation_variables import (
     SimulationVariables,
-    cross_linked_over_time,
-    thrombin_over_time,
+    line_1_y,
+    line_2_y,
 )
 
 WHITE = "#FFFFFF"
 CREAM = "#FFFDD0"
 GOLD = "#FFD700"
+LIGHTRED = "#FFCCCB"
+LIGHTGREEN = "#90EE90"
+LIGHTBLUE = "#ADD8E6"
 ROYALBLUE = "#4169E1"
 simVars = SimulationVariables()
 SIMULATION_END = 50000
@@ -46,6 +49,11 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.timer = QTimer()
+        self.time_limit = True
+        self.line1_name = "cross_linked_fibrin"
+        self.line2_name = "thrombin"
+        self.time_list_1 = []
+        self.time_list_2 = []
         self.timer.timeout.connect(self.time_passes)
 
         self.setStyleSheet(f"background-color: {CREAM};")
@@ -53,7 +61,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Coagulation Simulator")
         self.layout = QGridLayout()
 
-        column_widths = ((0, 15), (1, 5), (2, 15), (3, 5), (4, 40), (5, 10))
+        column_widths = ((0, 15), (1, 3), (2, 15), (3, 3), (4, 50), (5, 10))
         for i in column_widths:
             self.layout.setColumnStretch(i[0], i[1])
 
@@ -70,7 +78,7 @@ class MainWindow(QMainWindow):
         self.extrinsic_row = self.intrinsic_row + 11
         self.common_pathway_row = self.extrinsic_row + 5
 
-        actions_row = 8
+        actions_row = 9
         disease_row = actions_row + 3
         self.injuryButton = self.create_widget(
             actions_row,
@@ -100,11 +108,41 @@ class MainWindow(QMainWindow):
         self.create_widget(disease_row, 5, text="Disorder:", widget_type="LABEL")
 
         self.disorderBox = self.create_widget(
-            disease_row + 1, 5, options=disorders, widget_type="COMBOBOX"
+            disease_row + 1, 5, options=sorted(disorders), widget_type="COMBOBOX"
         )
         self.disorderBox.currentTextChanged.connect(self.disorder_changed)
         self.disorderBox.setSizeAdjustPolicy(
             self.disorderBox.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.line1Combo = self.create_widget(
+            disease_row + 4,
+            5,
+            widget_type="COMBOBOX",
+            options=sorted(simVars.__dict__),
+            colour=LIGHTRED,
+        )
+        self.line2Combo = self.create_widget(
+            disease_row + 7,
+            5,
+            widget_type="COMBOBOX",
+            options=sorted(simVars.__dict__),
+            colour=LIGHTBLUE,
+        )
+        self.line1Combo.currentTextChanged.connect(self.change_line1_variable)
+        self.line2Combo.currentTextChanged.connect(self.change_line2_variable)
+        self.line1ComboLabel = self.create_widget(
+            disease_row + 3,
+            5,
+            text="Red Line Variable",
+            widget_type="LABEL",
+            alignment="LEFT",
+        )
+        self.line2ComboLabel = self.create_widget(
+            disease_row + 6,
+            5,
+            text="Blue Line Variable",
+            widget_type="LABEL",
+            alignment="LEFT",
         )
         self.setup_time_functionality()
         self.setup_primary_haem()
@@ -112,6 +150,27 @@ class MainWindow(QMainWindow):
         self.setup_anticoagulation()
         self.setup_fibrinolysis()
         self.set_up_plot()
+        self.disorderBox.setCurrentText("None")
+        self.line1Combo.setCurrentText(self.line1_name)
+        self.line2Combo.setCurrentText(self.line2_name)
+
+    def change_line1_variable(self, text):
+        self.line1_name = text
+        self.change_line_variable(1)
+
+    def change_line2_variable(self, text):
+        self.line2_name = text
+        self.change_line_variable(2)
+
+    def change_line_variable(self, line: int):
+        match line:
+            case 1:
+                line_1_y.clear()
+                self.time_list_1.clear()
+            case 2:
+                line_2_y.clear()
+                self.time_list_2.clear()
+        self.update_lines()
 
     def setup_time_functionality(self):
         simulation_button_names = (
@@ -119,6 +178,7 @@ class MainWindow(QMainWindow):
             "Pause Simulation",
             "Next Step",
             "Stop and Reset Simulation",
+            "Time Limit ON",
         )
 
         (
@@ -126,6 +186,7 @@ class MainWindow(QMainWindow):
             self.stopTimerButton,
             self.oneTimeStep,
             self.resetButton,
+            self.timeLimitButton,
         ) = (
             self.create_widget(
                 i,
@@ -134,22 +195,23 @@ class MainWindow(QMainWindow):
                 colour=ROYALBLUE,
                 widget_type="BUTTON",
             )
-            for i in range(0, 4)
+            for i in range(5)
         )
 
         self.startTimerButton.clicked.connect(self.start_timer)
         self.stopTimerButton.clicked.connect(self.stop_timer)
         self.oneTimeStep.clicked.connect(self.time_passes)
         self.resetButton.clicked.connect(self.reset_simulation)
+        self.timeLimitButton.clicked.connect(self.toggle_time_limit)
 
         self.pickSpeedLabel = self.create_widget(
-            4, 5, text="Speed:", widget_type="LABEL"
+            5, 5, text="Speed:", widget_type="LABEL"
         )
         self.speedChoiceBox = self.create_widget(
-            5, 5, options=speeds, widget_type="COMBOBOX"
+            6, 5, options=speeds, widget_type="COMBOBOX"
         )
         self.speedChoiceBox.currentIndexChanged.connect(self.new_speed)
-        self.currentTimeLabel = self.create_widget(6, 5, widget_type="LABEL")
+        self.currentTimeLabel = self.create_widget(7, 5, widget_type="LABEL")
 
     def setup_fibrinolysis(self):
         self.fibrinolysisLabel = self.create_widget(
@@ -161,20 +223,20 @@ class MainWindow(QMainWindow):
             "Plasmin",
             "Fibrin Degradation Products (e.g. D-Dimer)",
             "t-PA",
-            "TAFI",
-            "TAFIa",
             "Plasmin Activator Inhibitor 1",
             "Alpha 2 Antiplasmin",
+            "TAFI",
+            "TAFIa",
         )
         (
-            self.plasminLabel,
             self.plasminogenLabel,
+            self.plasminLabel,
             self.fDPLabel,
             self.tPALabel,
-            self.tAFILabel,
-            self.tAFIaLabel,
             self.pAI1Label,
             self.a2ALabel,
+            self.tAFILabel,
+            self.tAFIaLabel,
         ) = (
             self.create_widget(
                 23 + i, 0, widget_type="LABEL", text=fibrinolysis_texts[i]
@@ -183,14 +245,14 @@ class MainWindow(QMainWindow):
         )
 
         (
-            self.plasminLabel2,
             self.plasminogenLabel2,
+            self.plasminLabel2,
             self.fDPLabel2,
             self.tPALabel2,
-            self.tAFILabel2,
-            self.tAFIaLabel2,
             self.pAI1Label2,
             self.a2ALabel2,
+            self.tAFILabel2,
+            self.tAFIaLabel2,
         ) = (self.create_widget(23 + i, 1, widget_type="LABEL") for i in range(8))
 
     def setup_anticoagulation(self):
@@ -199,8 +261,8 @@ class MainWindow(QMainWindow):
         )
         self.set_bold(self.anticoagLabel)
         anticoagulation_texts = (
-            "Protein C",
-            "Activated Protein C",
+            "Protein C (XIV)",
+            "Activated Protein C (XIVa)",
             "TFPI",
             "Antithrombin III",
             "Thrombomodulin",
@@ -236,6 +298,9 @@ class MainWindow(QMainWindow):
     def setup_primary_haem(self):
         self.primaryHaemLabel = self.create_widget(
             0, 0, text="Primary Haemostasis", widget_type="LABEL"
+        )
+        self.aULabel1 = self.create_widget(
+            0, 1, text="Amount \n(AU)", widget_type="LABEL"
         )
         self.set_bold(self.primaryHaemLabel)
         (
@@ -290,6 +355,9 @@ class MainWindow(QMainWindow):
     def setup_secondary_haem(self):
         self.secondaryHaemLabel = self.create_widget(
             0, 2, text="Secondary Haemostasis", widget_type="LABEL"
+        )
+        self.aULabel2 = self.create_widget(
+            0, 3, text="Amount\n (AU)", widget_type="LABEL"
         )
         self.set_bold(self.secondaryHaemLabel)
         common_pathway_names = (
@@ -353,7 +421,7 @@ class MainWindow(QMainWindow):
 
         intrinsic_names = (
             "Intrinsic Pathway",
-            "Activated Partial Thromboplastin Time (APTT)",
+            "Activated Partial \nThromboplastin Time (APTT)",
             "Kallikrein & HMWK",
             "Factor XII",
             "Factor XIIa",
@@ -458,31 +526,35 @@ class MainWindow(QMainWindow):
         self.plot_widget.addLegend()
         self.plot_widget.setYRange(0, 50000)
         self.plot_widget.setXRange(0, 1000)
+        self.plot_widget.setLabel("bottom", "Time (seconds)")
+        self.plot_widget.setLabel("left", "Amount (AU)")
         self.plot_widget.showGrid(x=True, y=True)
         self.pen = pg.mkPen(color=(255, 0, 0))
-        time_list = [i / 2 for i in range(len(cross_linked_over_time))]
-        self.line = self.plot_widget.plot(
+        time_list = [i / 2 for i in range(len(line_1_y))]
+        self.line1 = self.plot_widget.plot(
             time_list,
-            cross_linked_over_time,
+            line_1_y,
             pen=pg.mkPen(color=(255, 0, 0), width=3),
-            name="line1",
+            name=self.line1_name,
         )
         self.line2 = self.plot_widget.plot(
-            pen=pg.mkPen(color=(0, 0, 255), width=3), name="line2"
+            pen=pg.mkPen(color=(0, 0, 255), width=3), name=self.line2_name
         )
 
     def update_lines(self):
-        time_list = [i / 2 for i in range(len(cross_linked_over_time))]
-        self.line.setData(time_list, cross_linked_over_time)
-        self.line2.setData(time_list, thrombin_over_time)
+        # time_list = [i / 2 for i in range(len(line_1_y))]
+        self.line1.setData(self.time_list_1, line_1_y)
+        self.line2.setData(self.time_list_2, line_2_y)
 
     def time_passes(self):
         simVars.time_passes()
         self.update_lines()
 
-        cross_linked_over_time.append(simVars.cross_linked_fibrin)
-        thrombin_over_time.append(simVars.thrombin)
-        if simVars.current_time // 2 == 1000:
+        self.time_list_1.append(simVars.current_time / 2)
+        self.time_list_2.append(simVars.current_time / 2)
+        line_1_y.append(simVars.__dict__[self.line1_name])
+        line_2_y.append(simVars.__dict__[self.line2_name])
+        if self.time_limit and simVars.current_time // 2 > 1000:
             self.stop_timer()
         self.update_ui_components()
 
@@ -534,11 +606,13 @@ class MainWindow(QMainWindow):
     def injury_occurs(self):
         simVars.tissue_factor = 100
         simVars.subendothelium = 100
+        simVars.plasminogen = 10000
+        simVars.a2A = 100
         simVars.injury_stage = 0
         self.update_ui_components()
 
     def increase_fibrinogen_level(self):
-        simVars.fibrinogen += 20
+        simVars.fibrinogen += 1000
         self.update_ui_components()
 
     def fibrinolysis_occurs(self):
@@ -552,8 +626,10 @@ class MainWindow(QMainWindow):
         self.update_ui_components()
 
     def clear_lines(self):
-        cross_linked_over_time.clear()
-        thrombin_over_time.clear()
+        line_1_y.clear()
+        line_2_y.clear()
+        self.time_list_1.clear()
+        self.time_list_2.clear()
         self.update_lines()
 
     def start_timer(self):
@@ -572,13 +648,18 @@ class MainWindow(QMainWindow):
 
     def reset_simulation(self):
         simVars.reset()
-        cross_linked_over_time.clear()
-        thrombin_over_time.clear()
+        self.clear_lines()
         self.update_lines()
-
         self.stop_timer()
         self.speedChoiceBox.setCurrentIndex(0)
-        self.disorderBox.setCurrentIndex(0)
+        self.disorderBox.setCurrentText("None")
+        self.update_ui_components()
+
+    def toggle_time_limit(self):
+        self.time_limit = not self.time_limit
+        self.set_colour(
+            self.timeLimitButton, ROYALBLUE if self.time_limit else LIGHTGREEN
+        )
         self.update_ui_components()
 
     def new_speed(self, index):
@@ -679,9 +760,11 @@ class MainWindow(QMainWindow):
             ),
         )
 
+        self.timeLimitButton.setText(f"Time Limit {'ON' if self.time_limit else 'OFF'}")
+
         for label in updating_labels:
             label[0].setText(format(abs(label[1]), ".2f"))
-        self.currentTimeLabel.setText(f"Time: {simVars.current_time//2}")
+        self.currentTimeLabel.setText(f"Time: {simVars.current_time//2} seconds")
 
 
 if __name__ == "__main__":

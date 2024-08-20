@@ -3,14 +3,15 @@ from dataclasses import dataclass
 import random
 
 
-cross_linked_over_time = []
-thrombin_over_time = []
+line_1_y = []
+line_2_y = []
 
 
 @dataclass
 class SimulationVariables:
+    # values of compounds are roughly aiming to be in ratio of 1AU = 0.1ng/mL
     speed: int = 1
-    vWF: float = 0
+    vWF: float = 100000
     activated_platelets: float = 0
     glyc1b: float = 0
     glyc2b3a: float = 0
@@ -58,12 +59,12 @@ class SimulationVariables:
     protein_s: float = 0
     c1_esterase_inhibitor: float = 0
     plasmin: float = 0
-    plasminogen: float = 0
+    plasminogen: float = 10000
     tAFI: float = 1000
     tAFIa: float = 0
     tPA: float = 0
     pAI1: float = 100
-    a2A: float = 0
+    a2A: float = 100
     fDP: float = 0
     dummy: float = 0
 
@@ -166,7 +167,7 @@ class SimulationVariables:
         self.catalyze("thrombin", "fibrinogen", "fibrin", 15, calcium=True)
         self.catalyze("thrombin", "factor13", "factor13a", 19)
         self.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 50)
-        self.catalyze("tPA", "plasminogen", "plasmin", 20)
+        self.catalyze("tPA", "plasminogen", "plasmin", 20, tail=500)
         self.catalyze(
             "plasmin",
             "cross_linked_fibrin",
@@ -176,10 +177,16 @@ class SimulationVariables:
             multiplier_i1=0.15,
         )
         self.catalyze(
-            "plasmin", "fibrin", "fDP", 40, inhibitor_1="tAFIa", multiplier_i1=0.15
+            "plasmin",
+            "fibrin",
+            "fDP",
+            40,
+            inhibitor_1="tAFIa",
+            multiplier_i1=0.15,
         )
         self.catalyze("thrombin", "tAFI", "tAFIa", 400)
         self.catalyze("thrombin", "protein_c", "protein_ca", 20)
         self.catalyze("pAI1", "tPA", "dummy", 500)
+        self.catalyze("a2A", "plasmin", "dummy", 100)
 
         self.current_time += 1
