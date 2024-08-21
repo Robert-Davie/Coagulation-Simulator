@@ -30,10 +30,12 @@ SIMULATION_END = 50000
 disorders = [
     "None",
     "Von Willebrand Disease",
-    "Haemophilia A (Mild)",
+    "Haemophilia A (Moderate)",
     "Haemophilia A (Severe)",
     "Haemophilia B",
     "Haemophilia C",
+    "Hypocalcaemia (Moderate)",
+    "Hypocalcaemia (Severe)",
     "Vitamin K Deficiency",
     "Liver Disorder",
     "Factor V Leiden",
@@ -80,32 +82,31 @@ class MainWindow(QMainWindow):
 
         actions_row = 9
         disease_row = actions_row + 3
-        self.injuryButton = self.create_widget(
+
+        self.simulationModeLabel = self.create_widget(
             actions_row,
             5,
-            text="Injury",
-            colour=GOLD,
-            action=self.injury_occurs,
-            widget_type="BUTTON",
+            text="Simulation Mode",
+            alignment="LEFT",
+            widget_type="LABEL",
         )
-        self.addFibrinogen = self.create_widget(
+        self.simulationModeCombo = self.create_widget(
             actions_row + 1,
             5,
-            text="Add Fibrinogen",
-            colour=GOLD,
-            action=self.increase_fibrinogen_level,
-            widget_type="BUTTON",
+            options=(
+                "None",
+                "Haemostasis (Pro-thrombotic)",
+                "Haemostasis (Anti-thrombotic)",
+                "Fibrinolysis",
+            ),
+            widget_type="COMBOBOX",
         )
-        self.fibrinolysisButton = self.create_widget(
-            actions_row + 2,
-            5,
-            text="Fibrinolysis",
-            colour=GOLD,
-            action=self.fibrinolysis_occurs,
-            widget_type="BUTTON",
-        )
+        self.simulationModeCombo.setCurrentText("None")
+        self.simulationModeCombo.currentTextChanged.connect(self.preset_changed)
 
-        self.create_widget(disease_row, 5, text="Disorder:", widget_type="LABEL")
+        self.create_widget(
+            disease_row, 5, text="Disorder", alignment="LEFT", widget_type="LABEL"
+        )
 
         self.disorderBox = self.create_widget(
             disease_row + 1, 5, options=sorted(disorders), widget_type="COMBOBOX"
@@ -156,11 +157,19 @@ class MainWindow(QMainWindow):
 
     def change_line1_variable(self, text):
         self.line1_name = text
+        self.line1.setData(name=text)
         self.change_line_variable(1)
+        self.legend.removeItem(self.line1)
+        self.legend.removeItem(self.line2)
+        self.legend.addItem(self.line1, text)
+        self.legend.addItem(self.line2, self.line2_name)
 
     def change_line2_variable(self, text):
         self.line2_name = text
+        self.line2.setData(name=text)
         self.change_line_variable(2)
+        self.legend.removeItem(self.line2)
+        self.legend.addItem(self.line2, text)
 
     def change_line_variable(self, line: int):
         match line:
@@ -211,6 +220,7 @@ class MainWindow(QMainWindow):
             6, 5, options=speeds, widget_type="COMBOBOX"
         )
         self.speedChoiceBox.currentIndexChanged.connect(self.new_speed)
+        self.speedChoiceBox.setCurrentText("x 64")
         self.currentTimeLabel = self.create_widget(7, 5, widget_type="LABEL")
 
     def setup_fibrinolysis(self):
@@ -523,7 +533,7 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.plot_widget, 8, 4, 21, 1)
         self.plot_widget.setTitle("Compound Levels over Time", color=(0, 0, 0))
         self.plot_widget.setBackground("w")
-        self.plot_widget.addLegend()
+        self.legend = self.plot_widget.addLegend()
         self.plot_widget.setYRange(0, 50000)
         self.plot_widget.setXRange(0, 1000)
         self.plot_widget.setLabel("bottom", "Time (seconds)")
@@ -556,6 +566,7 @@ class MainWindow(QMainWindow):
         line_2_y.append(simVars.__dict__[self.line2_name])
         if self.time_limit and simVars.current_time // 2 > 1000:
             self.stop_timer()
+            print(simVars.calcium_ions)
         self.update_ui_components()
 
     def create_widget(
@@ -603,12 +614,29 @@ class MainWindow(QMainWindow):
     def set_bold(self, widget):
         widget.setFont(boldFont)
 
-    def injury_occurs(self):
+    def preset_changed(self, text):
+        match text:
+            case "None":
+                pass
+            case "Haemostasis (Pro-thrombotic)":
+                self.injury_occurs(prothrombotic=True)
+            case "Haemostasis (Anti-thrombotic)":
+                self.injury_occurs(prothrombotic=False)
+            case "Fibrinolysis":
+                self.fibrinolysis_occurs()
+
+    def injury_occurs(self, prothrombotic: bool):
         simVars.tissue_factor = 100
         simVars.subendothelium = 100
         simVars.plasminogen = 10000
         simVars.a2A = 100
         simVars.injury_stage = 0
+        if not prothrombotic:
+            simVars.thrombomodulin = 100
+            simVars.protein_s = 1000
+            simVars.tFPI = 100
+            simVars.antithrombin3 = 10000
+            simVars.c1_esterase_inhibitor = 10000
         self.update_ui_components()
 
     def increase_fibrinogen_level(self):
@@ -651,7 +679,8 @@ class MainWindow(QMainWindow):
         self.clear_lines()
         self.update_lines()
         self.stop_timer()
-        self.speedChoiceBox.setCurrentIndex(0)
+        self.simulationModeCombo.setCurrentText("None")
+        self.speedChoiceBox.setCurrentText("x 64")
         self.disorderBox.setCurrentText("None")
         self.update_ui_components()
 
@@ -676,7 +705,6 @@ class MainWindow(QMainWindow):
         simVars.speed = speed_dictionary[index]
 
     def disorder_changed(self, text):
-        simVars.reset()
         match text.upper():
             case "LIVER DISORDER":
                 simVars.prothrombin = 100
@@ -688,10 +716,14 @@ class MainWindow(QMainWindow):
                 simVars.factor11 = 0
             case "HAEMOPHILIA B":
                 simVars.factor9 = 0
-            case "HAEMOPHILIA A (MILD)":
+            case "HAEMOPHILIA A (MODERATE)":
                 simVars.factor8 = 500
             case "HAEMOPHILIA A (SEVERE)":
                 simVars.factor8 = 0
+            case "HYPOCALCAEMIA (MODERATE)":
+                simVars.calcium_ions = 1.1
+            case "HYPOCALCAEMIA (SEVERE)":
+                simVars.calcium_ions = 0.9
             case _:
                 pass
 

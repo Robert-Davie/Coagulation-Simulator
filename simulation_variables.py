@@ -10,7 +10,7 @@ line_2_y = []
 @dataclass
 class SimulationVariables:
     # values of compounds are roughly aiming to be in ratio of 1AU = 0.1ng/mL
-    speed: int = 1
+    speed: int = 64
     vWF: float = 100000
     activated_platelets: float = 0
     glyc1b: float = 0
@@ -51,7 +51,7 @@ class SimulationVariables:
     factor13a: float = 0
     cross_linked_fibrin: float = 0
     platelets: float = 300
-    protein_c: float = 0
+    protein_c: float = 10000
     protein_ca: float = 0
     tFPI: float = 0
     antithrombin3: float = 0
@@ -109,6 +109,8 @@ class SimulationVariables:
                 - inhibitor_amount,
                 0,
             )
+            if calcium and self.calcium_ions < 1.2:
+                choice2 *= (calcium / 1.2) ** 3
             change = round(min(self.__dict__[source] / tail, choice2), 10)
             self.__dict__[destination] += change
             self.__dict__[source] -= change
@@ -134,8 +136,6 @@ class SimulationVariables:
             catalyst_2="factor8a",
             multiplier=3000,
             calcium=True,
-            inhibitor_1="protein_ca",
-            multiplier_i1=0.1,
         )
         self.catalyze("tissue_factor", "factor7", "factor7a", 1000)
         self.catalyze("factor7a", "factor10", "factor10a", 1000)
@@ -150,8 +150,6 @@ class SimulationVariables:
             calcium=True,
             inhibitor_1="tFPI",
             multiplier_i1=0.1,
-            inhibitor_2="protein_ca",
-            multiplier_i2=0.1,
         )
         self.catalyze("thrombin", "factor11", "factor11a", 1000)
         self.catalyze("thrombin", "factor8", "factor8a", 1000)
@@ -185,8 +183,39 @@ class SimulationVariables:
             multiplier_i1=0.15,
         )
         self.catalyze("thrombin", "tAFI", "tAFIa", 400)
-        self.catalyze("thrombin", "protein_c", "protein_ca", 20)
         self.catalyze("pAI1", "tPA", "dummy", 500)
         self.catalyze("a2A", "plasmin", "dummy", 100)
+        if self.thrombomodulin > 0.01:
+            self.catalyze(
+                "thrombomodulin",
+                "protein_c",
+                "protein_ca",
+                100,
+                catalyst_2="thrombin",
+                multiplier=100,
+            )
+        self.catalyze(
+            "protein_ca",
+            "factor8a",
+            "dummy",
+            2000,
+            catalyst_2="protein_s",
+            multiplier=2000,
+        )
+        self.catalyze(
+            "protein_ca",
+            "factor5a",
+            "dummy",
+            2000,
+            catalyst_2="protein_s",
+            multiplier=2000,
+        )
+        self.catalyze("tFPI", "factor7a", "dummy", 2000)
+        self.catalyze("tFPI", "factor10a", "dummy", 2000)
+        self.catalyze("c1_esterase_inhibitor", "factor11a", "dummy", 2000)
+        self.catalyze("c1_esterase_inhibitor", "factor12a", "dummy", 2000)
+        self.catalyze("antithrombin3", "thrombin", "dummy", 2000)
+        self.catalyze("antithrombin3", "factor10a", "dummy", 2000)
+        self.catalyze("antithrombin3", "factor9a", "dummy", 2000)
 
         self.current_time += 1
