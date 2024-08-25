@@ -1,4 +1,5 @@
 import pyqtgraph as pg
+from constants import *
 
 from PyQt5.QtWidgets import (
     QApplication,
@@ -17,32 +18,7 @@ from simulation_variables import (
     line_2_y,
 )
 
-WHITE = "#FFFFFF"
-CREAM = "#FFFDD0"
-GOLD = "#FFD700"
-LIGHTRED = "#FFCCCB"
-LIGHTGREEN = "#90EE90"
-LIGHTBLUE = "#ADD8E6"
-ROYALBLUE = "#4169E1"
 simVars = SimulationVariables()
-SIMULATION_END = 50000
-
-disorders = [
-    "None",
-    "Von Willebrand Disease",
-    "Haemophilia A (Moderate)",
-    "Haemophilia A (Severe)",
-    "Haemophilia B",
-    "Haemophilia C",
-    "Hypocalcaemia (Moderate)",
-    "Hypocalcaemia (Severe)",
-    "Vitamin K Deficiency",
-    "Liver Disorder",
-    "Factor V Leiden",
-]
-
-speeds = ["x 1", "x 2", "x 4", "x 8", "x 16", "x 32", "x 64", "x 0.5"]
-
 boldFont = QFont()
 boldFont.setBold(True)
 
@@ -57,18 +33,14 @@ class MainWindow(QMainWindow):
         self.time_list_1 = []
         self.time_list_2 = []
         self.timer.timeout.connect(self.time_passes)
-
         self.setStyleSheet(f"background-color: {CREAM};")
         self.setWindowIcon(QIcon("icon.jpg"))
         self.setWindowTitle("Coagulation Simulator")
         self.layout = QGridLayout()
-
         column_widths = ((0, 15), (1, 3), (2, 15), (3, 3), (4, 50), (5, 10))
         for i in column_widths:
             self.layout.setColumnStretch(i[0], i[1])
-
         self.setup_ui_components()
-
         self.main_window = QWidget()
         self.main_window.setLayout(self.layout)
         self.setCentralWidget(self.main_window)
@@ -111,7 +83,7 @@ class MainWindow(QMainWindow):
         self.disorderBox = self.create_widget(
             disease_row + 1, 5, options=sorted(disorders), widget_type="COMBOBOX"
         )
-        self.disorderBox.currentTextChanged.connect(self.disorder_changed)
+        self.disorderBox.currentTextChanged.connect(self.set_disorder)
         self.disorderBox.setSizeAdjustPolicy(
             self.disorderBox.AdjustToMinimumContentsLengthWithIcon
         )
@@ -552,7 +524,6 @@ class MainWindow(QMainWindow):
         )
 
     def update_lines(self):
-        # time_list = [i / 2 for i in range(len(line_1_y))]
         self.line1.setData(self.time_list_1, line_1_y)
         self.line2.setData(self.time_list_2, line_2_y)
 
@@ -619,39 +590,11 @@ class MainWindow(QMainWindow):
             case "None":
                 pass
             case "Haemostasis (Pro-thrombotic)":
-                self.injury_occurs(prothrombotic=True)
+                self.set_haemostasis_mode(prothrombotic=True)
             case "Haemostasis (Anti-thrombotic)":
-                self.injury_occurs(prothrombotic=False)
+                self.set_haemostasis_mode(prothrombotic=False)
             case "Fibrinolysis":
-                self.fibrinolysis_occurs()
-
-    def injury_occurs(self, prothrombotic: bool):
-        simVars.tissue_factor = 100
-        simVars.subendothelium = 100
-        simVars.plasminogen = 10000
-        simVars.a2A = 100
-        simVars.injury_stage = 0
-        if not prothrombotic:
-            simVars.thrombomodulin = 100
-            simVars.protein_s = 1000
-            simVars.tFPI = 100
-            simVars.antithrombin3 = 10000
-            simVars.c1_esterase_inhibitor = 10000
-        self.update_ui_components()
-
-    def increase_fibrinogen_level(self):
-        simVars.fibrinogen += 1000
-        self.update_ui_components()
-
-    def fibrinolysis_occurs(self):
-        simVars.current_time = 0
-        simVars.plasminogen = 10000
-        simVars.tPA = 100
-        simVars.pAI1 = 0
-        simVars.fibrinogen = 0
-        simVars.cross_linked_fibrin = SIMULATION_END
-        self.clear_lines()
-        self.update_ui_components()
+                self.set_fibrinolysis_mode()
 
     def clear_lines(self):
         line_1_y.clear()
@@ -704,29 +647,21 @@ class MainWindow(QMainWindow):
         }
         simVars.speed = speed_dictionary[index]
 
-    def disorder_changed(self, text):
-        match text.upper():
-            case "LIVER DISORDER":
-                simVars.prothrombin = 100
-                simVars.factor7 = 10
-                simVars.factor9 = 10
-                simVars.factor10 = 10
-                simVars.platelets = 100
-            case "HAEMOPHILIA C":
-                simVars.factor11 = 0
-            case "HAEMOPHILIA B":
-                simVars.factor9 = 0
-            case "HAEMOPHILIA A (MODERATE)":
-                simVars.factor8 = 500
-            case "HAEMOPHILIA A (SEVERE)":
-                simVars.factor8 = 0
-            case "HYPOCALCAEMIA (MODERATE)":
-                simVars.calcium_ions = 1.1
-            case "HYPOCALCAEMIA (SEVERE)":
-                simVars.calcium_ions = 0.9
-            case _:
-                pass
+    def set_haemostasis_mode(self, prothrombotic: bool):
+        simVars.set_haemostasis_mode(prothrombotic=prothrombotic)
+        self.update_ui_components()
 
+    def increase_fibrinogen_level(self):
+        simVars.increase_fibrinogen_level()
+        self.update_ui_components()
+
+    def set_fibrinolysis_mode(self):
+        simVars.set_fibrinolysis_mode()
+        self.clear_lines()
+        self.update_ui_components()
+
+    def set_disorder(self, text):
+        simVars.set_disorder(text=text)
         self.update_ui_components()
 
     def update_ui_components(self):

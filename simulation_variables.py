@@ -1,6 +1,5 @@
-import math
 from dataclasses import dataclass
-import random
+from constants import SIMULATION_END
 
 
 line_1_y = []
@@ -219,3 +218,50 @@ class SimulationVariables:
         self.catalyze("antithrombin3", "factor9a", "dummy", 2000)
 
         self.current_time += 1
+
+    def set_haemostasis_mode(self, prothrombotic: bool):
+        self.tissue_factor = 100
+        self.subendothelium = 100
+        self.plasminogen = 10000
+        self.a2A = 100
+        self.injury_stage = 0
+        if not prothrombotic:
+            self.thrombomodulin = 100
+            self.protein_s = 1000
+            self.tFPI = 100
+            self.antithrombin3 = 10000
+            self.c1_esterase_inhibitor = 10000
+
+    def increase_fibrinogen_level(self):
+        self.fibrinogen += 1000
+
+    def set_fibrinolysis_mode(self):
+        self.current_time = 0
+        self.plasminogen = 10000
+        self.tPA = 100
+        self.pAI1 = 0
+        self.fibrinogen = 0
+        self.cross_linked_fibrin = SIMULATION_END
+
+    def set_disorder(self, text):
+        match text.upper():
+            case "LIVER DISORDER":
+                self.prothrombin = 100
+                self.factor7 = 10
+                self.factor9 = 10
+                self.factor10 = 10
+                self.platelets = 100
+            case "HAEMOPHILIA C":
+                self.factor11 = 0
+            case "HAEMOPHILIA B":
+                self.factor9 = 0
+            case "HAEMOPHILIA A (MODERATE)":
+                self.factor8 = 500
+            case "HAEMOPHILIA A (SEVERE)":
+                self.factor8 = 0
+            case "HYPOCALCAEMIA (MODERATE)":
+                self.calcium_ions = 1.1
+            case "HYPOCALCAEMIA (SEVERE)":
+                self.calcium_ions = 0.9
+            case _:
+                pass
