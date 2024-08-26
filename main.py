@@ -18,7 +18,7 @@ from simulation_variables import (
     line_2_y,
 )
 
-simVars = SimulationVariables()
+sim_vars = SimulationVariables()
 boldFont = QFont()
 boldFont.setBold(True)
 
@@ -91,14 +91,14 @@ class MainWindow(QMainWindow):
             disease_row + 4,
             5,
             widget_type="COMBOBOX",
-            options=sorted(simVars.__dict__),
+            options=sorted(sim_vars.__dict__),
             colour=LIGHTRED,
         )
         self.line2Combo = self.create_widget(
             disease_row + 7,
             5,
             widget_type="COMBOBOX",
-            options=sorted(simVars.__dict__),
+            options=sorted(sim_vars.__dict__),
             colour=LIGHTBLUE,
         )
         self.line1Combo.currentTextChanged.connect(self.change_line1_variable)
@@ -528,16 +528,16 @@ class MainWindow(QMainWindow):
         self.line2.setData(self.time_list_2, line_2_y)
 
     def time_passes(self):
-        simVars.time_passes()
+        sim_vars.time_passes()
         self.update_lines()
 
-        self.time_list_1.append(simVars.current_time / 2)
-        self.time_list_2.append(simVars.current_time / 2)
-        line_1_y.append(simVars.__dict__[self.line1_name])
-        line_2_y.append(simVars.__dict__[self.line2_name])
-        if self.time_limit and simVars.current_time // 2 > 1000:
+        self.time_list_1.append(sim_vars.current_time / 2)
+        self.time_list_2.append(sim_vars.current_time / 2)
+        line_1_y.append(sim_vars.__dict__[self.line1_name])
+        line_2_y.append(sim_vars.__dict__[self.line2_name])
+        if self.time_limit and sim_vars.current_time // 2 > 1000:
             self.stop_timer()
-            print(simVars.calcium_ions)
+            print(sim_vars.calcium_ions)
         self.update_ui_components()
 
     def create_widget(
@@ -605,7 +605,7 @@ class MainWindow(QMainWindow):
 
     def start_timer(self):
         self.new_speed(self.speedChoiceBox.currentIndex())
-        timer_speed = int(500 // simVars.speed)
+        timer_speed = int(500 // sim_vars.speed)
         self.timer.start(timer_speed)
         self.startTimerButton.setDisabled(True)
         self.speedChoiceBox.setDisabled(True)
@@ -618,7 +618,7 @@ class MainWindow(QMainWindow):
         self.set_colour(self.startTimerButton, ROYALBLUE)
 
     def reset_simulation(self):
-        simVars.reset()
+        sim_vars.reset()
         self.clear_lines()
         self.update_lines()
         self.stop_timer()
@@ -645,85 +645,85 @@ class MainWindow(QMainWindow):
             6: 64,
             7: 0.5,
         }
-        simVars.speed = speed_dictionary[index]
+        sim_vars.speed = speed_dictionary[index]
 
     def set_haemostasis_mode(self, prothrombotic: bool):
-        simVars.set_haemostasis_mode(prothrombotic=prothrombotic)
+        sim_vars.set_haemostasis_mode(prothrombotic=prothrombotic)
         self.update_ui_components()
 
     def increase_fibrinogen_level(self):
-        simVars.increase_fibrinogen_level()
+        sim_vars.increase_fibrinogen_level()
         self.update_ui_components()
 
     def set_fibrinolysis_mode(self):
-        simVars.set_fibrinolysis_mode()
+        sim_vars.set_fibrinolysis_mode()
         self.clear_lines()
         self.update_ui_components()
 
     def set_disorder(self, text):
-        simVars.set_disorder(text=text)
+        sim_vars.set_disorder(text=text)
         self.update_ui_components()
 
     def update_ui_components(self):
         updating_labels = (
-            (self.vWFLabel2, simVars.vWF),
-            (self.plateletsLabel2, simVars.platelets),
-            (self.activatedPlateletsLabel2, simVars.activated_platelets),
-            (self.glycoprotein1bLabel2, simVars.glyc1b),
-            (self.glycoprotein2b3aLabel2, simVars.glyc2b3a),
-            (self.prostacyclinLabel2, simVars.prostacyclin),
-            (self.endothelinLabel2, simVars.endothelin),
-            (self.nitricOxideLabel2, simVars.nitric_oxide),
-            (self.alphaGranulesLabel2, simVars.alpha_granules),
-            (self.denseGranulesLabel2, simVars.dense_granules),
-            (self.serotoninLabel2, simVars.serotonin),
-            (self.aDPLabel2, simVars.aDP),
-            (self.calciumIonsLabel2, simVars.calcium_ions),
-            (self.fibrinogenLabel, simVars.fibrinogen),
-            (self.fibrinLabel, simVars.fibrin),
-            (self.prothrombinLabel, simVars.prothrombin),
-            (self.thrombinLabel, simVars.thrombin),
-            (self.tissueFactorLabel, simVars.tissue_factor),
-            (self.factor7Label, simVars.factor7),
-            (self.factor7aLabel, simVars.factor7a),
-            (self.factor8Label, simVars.factor8),
-            (self.factor8aLabel, simVars.factor8a),
-            (self.factor9Label, simVars.factor9),
-            (self.factor9aLabel, simVars.factor9a),
-            (self.factor11Label, simVars.factor11),
-            (self.factor11aLabel, simVars.factor11a),
-            (self.factor12Label, simVars.factor12),
-            (self.factor12aLabel, simVars.factor12a),
-            (self.factor10Label, simVars.factor10),
-            (self.factor10aLabel, simVars.factor10a),
-            (self.factor5Label, simVars.factor5),
-            (self.factor5aLabel, simVars.factor5a),
-            (self.factor13Label, simVars.factor13),
-            (self.factor13aLabel, simVars.factor13a),
-            (self.iNRLabel, simVars.iNR),
-            (self.aPTTLabel, simVars.aPTT),
-            (self.proteinCLabel2, simVars.protein_c),
-            (self.proteinCaLabel2, simVars.protein_ca),
-            (self.tFPILabel2, simVars.tFPI),
-            (self.thrombomodulinLabel2, simVars.thrombomodulin),
-            (self.antithrombin3Label2, simVars.antithrombin3),
-            (self.proteinSLabel2, simVars.protein_s),
-            (self.c1EsteraseInhibitorLabel2, simVars.c1_esterase_inhibitor),
-            (self.plasminLabel2, simVars.plasmin),
-            (self.plasminogenLabel2, simVars.plasminogen),
-            (self.fDPLabel2, simVars.fDP),
-            (self.tPALabel2, simVars.tPA),
-            (self.tAFILabel2, simVars.tAFI),
-            (self.tAFIaLabel2, simVars.tAFIa),
-            (self.pAI1Label2, simVars.pAI1),
-            (self.a2ALabel2, simVars.a2A),
+            (self.vWFLabel2, sim_vars.vWF),
+            (self.plateletsLabel2, sim_vars.platelets),
+            (self.activatedPlateletsLabel2, sim_vars.activated_platelets),
+            (self.glycoprotein1bLabel2, sim_vars.glyc1b),
+            (self.glycoprotein2b3aLabel2, sim_vars.glyc2b3a),
+            (self.prostacyclinLabel2, sim_vars.prostacyclin),
+            (self.endothelinLabel2, sim_vars.endothelin),
+            (self.nitricOxideLabel2, sim_vars.nitric_oxide),
+            (self.alphaGranulesLabel2, sim_vars.alpha_granules),
+            (self.denseGranulesLabel2, sim_vars.dense_granules),
+            (self.serotoninLabel2, sim_vars.serotonin),
+            (self.aDPLabel2, sim_vars.aDP),
+            (self.calciumIonsLabel2, sim_vars.calcium_ions),
+            (self.fibrinogenLabel, sim_vars.fibrinogen),
+            (self.fibrinLabel, sim_vars.fibrin),
+            (self.prothrombinLabel, sim_vars.prothrombin),
+            (self.thrombinLabel, sim_vars.thrombin),
+            (self.tissueFactorLabel, sim_vars.tissue_factor),
+            (self.factor7Label, sim_vars.factor7),
+            (self.factor7aLabel, sim_vars.factor7a),
+            (self.factor8Label, sim_vars.factor8),
+            (self.factor8aLabel, sim_vars.factor8a),
+            (self.factor9Label, sim_vars.factor9),
+            (self.factor9aLabel, sim_vars.factor9a),
+            (self.factor11Label, sim_vars.factor11),
+            (self.factor11aLabel, sim_vars.factor11a),
+            (self.factor12Label, sim_vars.factor12),
+            (self.factor12aLabel, sim_vars.factor12a),
+            (self.factor10Label, sim_vars.factor10),
+            (self.factor10aLabel, sim_vars.factor10a),
+            (self.factor5Label, sim_vars.factor5),
+            (self.factor5aLabel, sim_vars.factor5a),
+            (self.factor13Label, sim_vars.factor13),
+            (self.factor13aLabel, sim_vars.factor13a),
+            (self.iNRLabel, sim_vars.iNR),
+            (self.aPTTLabel, sim_vars.aPTT),
+            (self.proteinCLabel2, sim_vars.protein_c),
+            (self.proteinCaLabel2, sim_vars.protein_ca),
+            (self.tFPILabel2, sim_vars.tFPI),
+            (self.thrombomodulinLabel2, sim_vars.thrombomodulin),
+            (self.antithrombin3Label2, sim_vars.antithrombin3),
+            (self.proteinSLabel2, sim_vars.protein_s),
+            (self.c1EsteraseInhibitorLabel2, sim_vars.c1_esterase_inhibitor),
+            (self.plasminLabel2, sim_vars.plasmin),
+            (self.plasminogenLabel2, sim_vars.plasminogen),
+            (self.fDPLabel2, sim_vars.fDP),
+            (self.tPALabel2, sim_vars.tPA),
+            (self.tAFILabel2, sim_vars.tAFI),
+            (self.tAFIaLabel2, sim_vars.tAFIa),
+            (self.pAI1Label2, sim_vars.pAI1),
+            (self.a2ALabel2, sim_vars.a2A),
             (
                 self.crossLinkedFibrinLabel,
-                simVars.cross_linked_fibrin,
+                sim_vars.cross_linked_fibrin,
             ),
             (
                 self.exposedSubendotheliumLabel,
-                simVars.subendothelium,
+                sim_vars.subendothelium,
             ),
         )
 
@@ -731,7 +731,7 @@ class MainWindow(QMainWindow):
 
         for label in updating_labels:
             label[0].setText(format(abs(label[1]), ".2f"))
-        self.currentTimeLabel.setText(f"Time: {simVars.current_time//2} seconds")
+        self.currentTimeLabel.setText(f"Time: {sim_vars.current_time // 2} seconds")
 
 
 if __name__ == "__main__":

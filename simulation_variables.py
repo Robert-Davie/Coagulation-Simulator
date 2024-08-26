@@ -7,6 +7,58 @@ line_2_y = []
 
 
 @dataclass
+class ReactionVariables:
+    catalyst_amount: float
+    source_amount: float
+    divisor: float
+    catalyst_2_amount: float = 0.0
+    calcium_ions: float = 1.2
+    reaction_affected_by_calcium: bool = False
+    multiplier: float = 1.0
+    inhibitor_1_amount: float = 0.0
+    multiplier_i1: float = 0.0
+    inhibitor_2_amount: float = 0.0
+    multiplier_i2: float = 0.0
+    tail: float = 100.0
+    vitamin_k: bool = False
+    maximum_inhibitor_amount: float = 0.0
+
+    def get_reaction_size(self) -> float:
+        maximum_source_available = self.source_amount / self.tail
+        if self.source_amount < 0.005:
+            return 0
+        self.maximum_inhibitor_amount = self.get_maximum_inhibitor_amount()
+        maximum_catalyst_available = self.get_maximum_catalyst_available()
+        change = min(maximum_source_available, maximum_catalyst_available)
+        return change
+
+    def get_maximum_catalyst_available(self):
+        maximum_catalyst_available = (
+            max(
+                self.catalyst_amount,
+                self.catalyst_2_amount,
+                min(self.catalyst_amount, self.catalyst_2_amount) * self.multiplier,
+            )
+            / self.divisor
+            - self.maximum_inhibitor_amount
+        )
+        return max(maximum_catalyst_available * self.calcium_multiplier(), 0)
+
+    def calcium_multiplier(self) -> float:
+        if not self.reaction_affected_by_calcium:
+            return 1.0
+        if self.calcium_ions > 1.199:
+            return 1.0
+        return (self.calcium_ions / 1.2) ** 3
+
+    def get_maximum_inhibitor_amount(self):
+        return max(
+            self.inhibitor_1_amount * self.multiplier_i1,
+            self.inhibitor_2_amount * self.multiplier_i2,
+        )
+
+
+@dataclass
 class SimulationVariables:
     # values of compounds are roughly aiming to be in ratio of 1AU = 0.1ng/mL
     speed: int = 64
@@ -70,154 +122,212 @@ class SimulationVariables:
     def reset(self):
         self.__dict__ = SimulationVariables().__dict__
 
-    def catalyze(
-        self,
-        catalyst,
-        source,
-        destination,
-        factor,
-        catalyst_2=None,
-        multiplier=1.0,
-        inhibitor_1=None,
-        multiplier_i1=0.0,
-        inhibitor_2=None,
-        multiplier_i2=0.0,
-        tail=100.0,
-        calcium=False,
-        vitamin_k=False,
-    ):
-        catalyst_amount = self.__dict__[catalyst]
-        catalyst_2_amount = 0
-        if catalyst_2:
-            catalyst_2_amount = self.__dict__[catalyst_2]
-        inhibitor_amount = 0
-        i1, i2 = 0, 0
-        if inhibitor_1:
-            i1 = self.__dict__[inhibitor_1]
-        if inhibitor_2:
-            i2 = self.__dict__[inhibitor_2]
-        inhibitor_amount = max(
-            i1 * multiplier_i1,
-            i2 * multiplier_i2,
-        )
-        if self.__dict__[source] > 0:
-            choice2 = max(
-                catalyst_amount / factor - inhibitor_amount,
-                catalyst_2_amount / factor - inhibitor_amount,
-                min(catalyst_amount, catalyst_2_amount) * (multiplier / factor)
-                - inhibitor_amount,
-                0,
-            )
-            if calcium and self.calcium_ions < 1.2:
-                choice2 *= (calcium / 1.2) ** 3
-            change = round(min(self.__dict__[source] / tail, choice2), 10)
-            self.__dict__[destination] += change
-            self.__dict__[source] -= change
+    def clear(self):
+        self.__dict__ = {i: 0 for i in self.__dict__.keys()}
 
-    def time_passes(self):
-        self.catalyze("subendothelium", "factor12", "factor12a", 100)
-        self.catalyze("factor12a", "factor11", "factor11a", 500)
-        self.catalyze(
-            "factor11a",
-            "factor9",
-            "factor9a",
-            2000,
-            calcium=True,
-            catalyst_2="factor7a",
+    def convert_factor12(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.subendothelium,
+            source_amount=self.factor12,
+            divisor=100,
+        )
+        self.perform_reaction("factor12", "factor12a", reaction.get_reaction_size())
+
+    def convert_factor11(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.factor12a,
+            source_amount=self.factor11,
+            divisor=500,
+        )
+        self.perform_reaction("factor11", "factor11a", reaction.get_reaction_size())
+
+    def convert_factor9(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.factor11a,
+            source_amount=self.factor9,
+            divisor=2000,
+            reaction_affected_by_calcium=True,
+            catalyst_2_amount=self.factor7a,
             multiplier=200,
         )
-        # convert X to Xa by VIIIa and IXa
-        self.catalyze(
-            "factor9a",
-            "factor10",
-            "factor10a",
-            120000,
-            catalyst_2="factor8a",
+        self.perform_reaction("factor9", "factor9a", reaction.get_reaction_size())
+
+    def convert_factor10_intrinsic(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.factor9a,
+            catalyst_2_amount=self.factor8a,
+            source_amount=self.factor10,
+            divisor=120000,
             multiplier=3000,
-            calcium=True,
+            reaction_affected_by_calcium=True,
         )
-        self.catalyze("tissue_factor", "factor7", "factor7a", 1000)
-        self.catalyze("factor7a", "factor10", "factor10a", 1000)
-        # convert II to IIa by Xa
-        self.catalyze(
-            "factor10a",
-            "prothrombin",
-            "thrombin",
-            120000,
-            catalyst_2="factor5a",
+        self.perform_reaction("factor10", "factor10a", reaction.get_reaction_size())
+
+    def convert_factor7(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.tissue_factor,
+            source_amount=self.factor7,
+            divisor=1000,
+        )
+        self.perform_reaction("factor7", "factor7a", reaction.get_reaction_size())
+
+    def convert_factor10_extrinsic(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.factor7a,
+            source_amount=self.factor10,
+            divisor=1000,
+        )
+        self.perform_reaction("factor10", "factor10a", reaction.get_reaction_size())
+
+    def convert_prothrombin(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.factor10a,
+            catalyst_2_amount=self.factor5a,
+            source_amount=self.prothrombin,
+            divisor=120000,
             multiplier=6000,
-            calcium=True,
-            inhibitor_1="tFPI",
+            reaction_affected_by_calcium=True,
+            inhibitor_1_amount=self.tFPI,
             multiplier_i1=0.1,
         )
-        self.catalyze("thrombin", "factor11", "factor11a", 1000)
-        self.catalyze("thrombin", "factor8", "factor8a", 1000)
-        self.catalyze("thrombin", "factor7", "factor7a", 1000)
-        self.catalyze(
-            "thrombin",
-            "factor5",
-            "factor5a",
-            120000,
-            catalyst_2="factor10a",
+        self.perform_reaction("prothrombin", "thrombin", reaction.get_reaction_size())
+
+    def thrombin_convert_factor11(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.thrombin,
+            source_amount=self.factor11,
+            divisor=1000,
+        )
+        self.perform_reaction("factor11", "factor11a", reaction.get_reaction_size())
+
+    def thrombin_convert_factor8(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.thrombin,
+            source_amount=self.factor8,
+            divisor=1000,
+        )
+        self.perform_reaction("factor8", "factor8a", reaction.get_reaction_size())
+
+    def thrombin_convert_factor7(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.thrombin,
+            source_amount=self.factor7,
+            divisor=1000,
+        )
+        self.perform_reaction("factor7", "factor7a", reaction.get_reaction_size())
+
+    def convert_factor5(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.thrombin,
+            catalyst_2_amount=self.factor10a,
+            source_amount=self.factor5,
+            divisor=120_000,
             multiplier=6000,
         )
-        self.catalyze("thrombin", "fibrinogen", "fibrin", 15, calcium=True)
-        self.catalyze("thrombin", "factor13", "factor13a", 19)
-        self.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 50)
-        self.catalyze("tPA", "plasminogen", "plasmin", 20, tail=500)
-        self.catalyze(
-            "plasmin",
-            "cross_linked_fibrin",
-            "fDP",
-            20,
-            inhibitor_1="tAFIa",
-            multiplier_i1=0.15,
+        self.perform_reaction("factor5", "factor5a", reaction.get_reaction_size())
+
+    def convert_fibrinogen(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.thrombin,
+            source_amount=self.fibrinogen,
+            divisor=15,
+            reaction_affected_by_calcium=True,
         )
-        self.catalyze(
-            "plasmin",
-            "fibrin",
-            "fDP",
-            40,
-            inhibitor_1="tAFIa",
-            multiplier_i1=0.15,
+        self.perform_reaction("fibrinogen", "fibrin", reaction.get_reaction_size())
+
+    def convert_factor13(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.thrombin,
+            source_amount=self.factor13,
+            divisor=20,
         )
-        self.catalyze("thrombin", "tAFI", "tAFIa", 400)
-        self.catalyze("pAI1", "tPA", "dummy", 500)
-        self.catalyze("a2A", "plasmin", "dummy", 100)
-        if self.thrombomodulin > 0.01:
-            self.catalyze(
-                "thrombomodulin",
-                "protein_c",
-                "protein_ca",
-                100,
-                catalyst_2="thrombin",
-                multiplier=100,
-            )
-        self.catalyze(
-            "protein_ca",
-            "factor8a",
-            "dummy",
-            2000,
-            catalyst_2="protein_s",
-            multiplier=2000,
+        self.perform_reaction("factor13", "factor13a", reaction.get_reaction_size())
+
+    def convert_fibrin(self):
+        reaction = ReactionVariables(
+            catalyst_amount=self.factor13a, source_amount=self.fibrin, divisor=50
         )
-        self.catalyze(
-            "protein_ca",
-            "factor5a",
-            "dummy",
-            2000,
-            catalyst_2="protein_s",
-            multiplier=2000,
+        self.perform_reaction(
+            "fibrin", "cross_linked_fibrin", reaction.get_reaction_size()
         )
-        self.catalyze("tFPI", "factor7a", "dummy", 2000)
-        self.catalyze("tFPI", "factor10a", "dummy", 2000)
-        self.catalyze("c1_esterase_inhibitor", "factor11a", "dummy", 2000)
-        self.catalyze("c1_esterase_inhibitor", "factor12a", "dummy", 2000)
-        self.catalyze("antithrombin3", "thrombin", "dummy", 2000)
-        self.catalyze("antithrombin3", "factor10a", "dummy", 2000)
-        self.catalyze("antithrombin3", "factor9a", "dummy", 2000)
+
+    def time_passes(self):
+        self.convert_fibrinogen()
+        self.convert_fibrin()
+        self.convert_prothrombin()
+        self.thrombin_convert_factor7()
+        self.thrombin_convert_factor8()
+        self.thrombin_convert_factor11()
+        self.convert_factor5()
+        self.convert_factor7()
+        self.convert_factor9()
+        self.convert_factor10_extrinsic()
+        self.convert_factor10_intrinsic()
+        self.convert_factor11()
+        self.convert_factor12()
+        self.convert_factor13()
+        # TODO: add remaining reactions
+        # self.catalyze("factor13a", "fibrin", "cross_linked_fibrin", 50)
+        # self.catalyze("tPA", "plasminogen", "plasmin", 20, tail=500)
+        # self.catalyze(
+        #     "plasmin",
+        #     "cross_linked_fibrin",
+        #     "fDP",
+        #     20,
+        #     inhibitor_1="tAFIa",
+        #     multiplier_i1=0.15,
+        # )
+        # self.catalyze(
+        #     "plasmin",
+        #     "fibrin",
+        #     "fDP",
+        #     40,
+        #     inhibitor_1="tAFIa",
+        #     multiplier_i1=0.15,
+        # )
+        # self.catalyze("thrombin", "tAFI", "tAFIa", 400)
+        # self.catalyze("pAI1", "tPA", "dummy", 500)
+        # self.catalyze("a2A", "plasmin", "dummy", 100)
+        # if self.thrombomodulin > 0.01:
+        #     self.catalyze(
+        #         "thrombomodulin",
+        #         "protein_c",
+        #         "protein_ca",
+        #         100,
+        #         catalyst_2="thrombin",
+        #         multiplier=100,
+        #     )
+        # self.catalyze(
+        #     "protein_ca",
+        #     "factor8a",
+        #     "dummy",
+        #     2000,
+        #     catalyst_2="protein_s",
+        #     multiplier=2000,
+        # )
+        # self.catalyze(
+        #     "protein_ca",
+        #     "factor5a",
+        #     "dummy",
+        #     2000,
+        #     catalyst_2="protein_s",
+        #     multiplier=2000,
+        # )
+        # self.catalyze("tFPI", "factor7a", "dummy", 2000)
+        # self.catalyze("tFPI", "factor10a", "dummy", 2000)
+        # self.catalyze("c1_esterase_inhibitor", "factor11a", "dummy", 2000)
+        # self.catalyze("c1_esterase_inhibitor", "factor12a", "dummy", 2000)
+        # self.catalyze("antithrombin3", "thrombin", "dummy", 2000)
+        # self.catalyze("antithrombin3", "factor10a", "dummy", 2000)
+        # self.catalyze("antithrombin3", "factor9a", "dummy", 2000)
 
         self.current_time += 1
+
+    def perform_reaction(self, source, destination, change):
+        source_amount = getattr(self, source)
+        destination_amount = getattr(self, destination)
+        setattr(self, source, source_amount - change)
+        setattr(self, destination, destination_amount + change)
 
     def set_haemostasis_mode(self, prothrombotic: bool):
         self.tissue_factor = 100
